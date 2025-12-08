@@ -1,6 +1,0 @@
-Myhill Nerode
-https://www.youtube.com/watch?v=BOY-E9DDgD8&list=PLmLrJWEZXJzTO1gERudGfy_7qim4R842p
-
-NDFA-epsilon iff regex
-https://www.youtube.com/watch?v=H2ZnJ-WZt0Y
-https://www.youtube.com/watch?v=qN0rnY53534

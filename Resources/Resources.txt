@@ -1,0 +1,1 @@
+Introduction to the theory of computation (pdf) - page 66: Proof of equivalence between regular expressions and finite automatons

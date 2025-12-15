@@ -57,11 +57,50 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             induction x
             case nil => tauto
             case cons σ tail _ =>
-                rw [@List.eq_nil_iff_length_eq_zero]
-                have : (σ :: tail).length ≠ 0 := by
-                    exact Ne.symm (Nat.zero_ne_add_one tail.length)
+                absurd hx
+                rw[A.mem_accepts_iff_exists_path]
+                push_neg
+                intro q_start q_accept x' h_q_start h_q_accept h_x'
+                intro h
+                induction h
+                case nil =>
+                    simp_all only [εNFA.eval_nil, ne_eq, singleton_inter_eq_empty, not_not, mem_singleton_iff,
+                      List.reduceOption_nil, List.nil_eq, reduceCtorEq, A]
+                case cons q_start q_step q_accept σ x h₁ h₂ h₃ =>
+                    exact h₁
 
-                contradiction
+                -- have h_empty_σ : A.evalFrom A.start [σ] = ∅ := by
+                --     simp_all [A]
+                --     ext x : 1
+                --     simp_all only [εNFA.mem_stepSet_iff, mem_singleton_iff, εNFA.εClosure_empty, mem_empty_iff_false,
+                --       and_false, exists_const, A]
+
+                -- have h_empty_tail : A.evalFrom (A.evalFrom A.start [σ]) tail = ∅ := by
+                --     rw[h_empty_σ]
+                --     exact εNFA.evalFrom_empty A tail
+
+                -- have h_eval : A.eval (σ :: tail) = A.evalFrom (A.evalFrom A.start [σ]) tail := by
+
+                -- have h_empty_x : A.eval (σ :: tail) = ∅ := by
+
+
+                --     sorry
+
+                -- have h_empty_implies_not_accepted: ∀(x : List alphabet), A.eval x = ∅ → x ∉ A.accepts := by
+                --     intro x
+                --     rw[εNFA.accepts, εNFA.eval]
+                --     intro h_x_empty
+                --     have : ∀ S ∈ A.accept, S ∉ A.evalFrom A.start x := by
+                --         exact fun S a => of_eq_false (congrFun h_x_empty S)
+
+                --     have lean_is_stupid: ∀ S ∈ A.accept, S ∉ A.evalFrom A.start x → x ∉ {x | ∃ S ∈ A.accept, S ∈ A.evalFrom A.start x} := by
+                --         simp only [mem_setOf_eq, not_exists, not_and, A]
+
+                --     exact lean_is_stupid 0 rfl (this 0 rfl)
+
+                -- exact h_empty_implies_not_accepted (σ :: tail) h_empty_x
+
+
     case char =>
         sorry
     case plus =>

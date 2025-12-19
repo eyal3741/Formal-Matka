@@ -14,6 +14,7 @@ variable {alphabet : Type u} { Q : Type v}
 
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
     induction r
+
     case zero =>
         let A : εNFA alphabet ℕ := {
             start  := ∅
@@ -31,11 +32,9 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             step   := fun q a => ∅
         }
         use A
-        simp only [RegularExpression.one_def, RegularExpression.matches'_epsilon, Language.one_def]
-        rw [@Language.ext_iff]
+        simp only [RegularExpression.one_def, RegularExpression.matches'_epsilon, Language.one_def, @Language.ext_iff]
         intro x
-        rw [@mem_singleton_iff]
-        rw[A.mem_accepts_iff_exists_path]
+        rw [@mem_singleton_iff, A.mem_accepts_iff_exists_path]
 
         constructor
         case mp =>
@@ -45,34 +44,24 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
 
         case mpr =>
             rintro ⟨ q_start, q_accept, x', h_q_start, h_q_accept, h_x', h_ispath ⟩
-
-            induction x
-            case nil => rfl
-            case cons σ tail _ =>
-                absurd h_ispath
-                intro h
-                induction h
-                case nil =>
-                    simp_all only [εNFA.eval_nil, ne_eq, singleton_inter_eq_empty, not_not, mem_singleton_iff,
-                      List.reduceOption_nil, List.nil_eq, reduceCtorEq, A]
-                case cons _ _ _ _ h_step_with_σ _ _ _ =>
-                    exact h_step_with_σ
+            cases h_ispath
+            case nil => exact id (Eq.symm h_x')
+            case cons _ _ _ h_step _ =>
+                exact False.elim h_step
 
     case char σ =>
         let A : εNFA alphabet ℕ := {
             start  := {0}
             accept := {1}
-            step   := fun q a => match q, a with
+            step   := fun q a => match  (generalizing := true) q, a with
                 | 0, σ => {1}
                 | _, _ => ∅
         }
         use A
 
-        simp only [RegularExpression.matches'_char]
-        rw [@Language.ext_iff]
+        simp only [RegularExpression.matches'_char, @Language.ext_iff]
         intro x
-        rw [@mem_singleton_iff]
-        rw[A.mem_accepts_iff_exists_path]
+        rw [@mem_singleton_iff, A.mem_accepts_iff_exists_path]
 
         constructor
         case mp =>
@@ -84,28 +73,64 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             -- TODO!!!!!!!!!!!
             rintro ⟨ q_start, q_accept, x', h_q_start, h_q_accept, h_x', h_ispath ⟩
 
-            induction x
+            cases h_ispath
             case nil =>
+                subst h_x'
+                simp_all only [mem_singleton_iff, zero_ne_one, A]
+            case cons t c y _ h_step =>
+                cases c
+                case none => sorry
+                case some =>
+
+            if h_empty: x' = [] then
                 absurd h_ispath
-                intro h
-                induction h
-                case nil =>
-                    simp_all only [εNFA.eval_nil, ne_eq, singleton_inter_eq_empty, not_not, mem_singleton_iff,
-                      List.reduceOption_nil, List.nil_eq, reduceCtorEq, A]
-                case cons q_start q_step q_accept σ x h₁ h₂ h₃ =>
+                intro _
+                subst h_empty h_x'
+                simp_all only [mem_singleton_iff, εNFA.isPath_nil, zero_ne_one, A]
+            else if h_σ: x' = [σ] then
+                subst h_x' h_σ
+                simp_all only [mem_singleton_iff, List.pure_def, List.bind_eq_flatMap, List.flatMap_cons,
+                  List.flatMap_nil, List.append_nil, εNFA.isPath_singleton, List.cons_ne_self, not_false_eq_true,
+                  List.reduceOption_cons_of_some, List.reduceOption_nil, A]
+            else
+                simp at h_σ
+                push_neg at h_σ
+                absurd h_ispath
+                intro _
 
 
-            case cons σ tail _ =>
-                absurd hx
-                push_neg
-                intro q_start q_accept x' h_q_start h_q_accept h_x'
-                intro h
-                induction h
-                case nil =>
-                    simp_all only [εNFA.eval_nil, ne_eq, singleton_inter_eq_empty, not_not, mem_singleton_iff,
-                      List.reduceOption_nil, List.nil_eq, reduceCtorEq, A]
-                case cons q_start q_step q_accept σ x h₁ h₂ h₃ =>
-                    exact h₁
+                sorry
+
+            induction h_ispath
+            case nil q =>
+                have h_0_acc : 0 ∉ A.accept := by exact of_decide_eq_false rfl
+                have : q ∉ A.accept := by exact Eq.mpr_not (congrArg (Membership.mem A.accept) h_q_start) h_0_acc
+                contradiction
+            case cons t s u c tail h_step h_ispath _ =>
+
+                by_cases tail = []
+                case pos h_empty_tail =>
+                    by_cases c = σ
+                    case pos h_c_eq_σ => -- Only true case
+                        subst h_empty_tail h_x' h_c_eq_σ
+                        simp_all only [mem_singleton_iff, εNFA.isPath_nil, List.reduceOption_cons_of_some,
+                          List.reduceOption_nil, one_ne_zero, implies_true, List.ne_cons_self, imp_self, A]
+                    case neg h_c_neq_σ =>
+                        push_neg at h_c_neq_σ
+                        have h_step_empty: A.step s c = ∅ := by
+                            simp_rw[A]
+                            match _:s, hc:c with
+                            | 0, .(σ) => sorry
+
+
+
+                        subst h_empty_tail h_x'
+                        simp_all only [mem_singleton_iff, ne_eq, singleton_ne_empty, A]
+
+                case neg h_nonempty_tail =>
+                    push_neg at h_nonempty_tail
+                    absurd h_ispath
+
     case plus =>
         sorry
     case comp =>
@@ -115,3 +140,15 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
 
 theorem εNFA_to_Regex (A: εNFA alphabet Q) : ∃ (r: RegularExpression alphabet), r.matches' = A.accepts := by
     sorry
+
+
+def g (xs ys : List Nat) : Nat :=
+    match xs, ys with
+    | [a, b], _ => a+b+1
+    | _, [b, c] => b+1
+    | _, _ => 1
+
+example (xs ys : List Nat) (h : g xs ys = 0) : False := by
+    simp [g] at h;
+    split at h
+    simp +arith at h

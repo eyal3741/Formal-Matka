@@ -13,6 +13,35 @@ universe u v
 open Classical
 variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]
 
+def to_0mod2_εNFA (A : εNFA alphabet ℕ) : (εNFA alphabet ℕ) :=
+    {
+        start  := { 2*q' | q' ∈ A.start  }
+        accept := { 2*q' | q' ∈ A.accept }
+        step   := fun q c => match (q % 2), c with
+            | 0, _ => {2*q' | q' ∈ (A.step (q/2) c) }
+            | _, _ => ∅
+        : εNFA alphabet ℕ
+    }
+
+def to_1mod2_εNFA (A : εNFA alphabet ℕ) : (εNFA alphabet ℕ) :=
+    {
+        start  := { 2*q' + 1 | q' ∈ A.start  }
+        accept := { 2*q' + 1 | q' ∈ A.accept }
+        step   := fun q c => match (q % 2), c with
+            | 0, _ => {2*q' + 1 | q' ∈ (A.step (q/2) c) }
+            | _, _ => ∅
+        : εNFA alphabet ℕ
+    }
+
+lemma accepts_eq_0mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) :
+    (A' = to_0mod2_εNFA A) → A.accepts = A'.accepts := by
+    sorry
+
+lemma accepts_eq_1mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) :
+    (A' = to_1mod2_εNFA A) → A.accepts = A'.accepts := by
+    sorry
+
+
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
     induction r
 
@@ -78,7 +107,6 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             · simp only [A, and_self, ↓reduceIte, mem_singleton_iff]
 
         case mpr =>
-            -- TODO!!!!!!!!!!!
             rintro ⟨ q_start, q_accept, x', h_q_start, h_q_accept, h_x', h_ispath ⟩
 
             cases h_ispath
@@ -122,12 +150,15 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
         obtain ⟨ A₁, hA₁ ⟩ := h_r₁
         obtain ⟨ A₂, hA₂ ⟩ := h_r₂
 
+        let A₁' := to_0mod2_εNFA A₁
+        let A₂' := to_1mod2_εNFA A₂
+
         let A : εNFA alphabet ℕ := {
-            start  := { 2*q' | q' ∈ A₁.start  } ∪ { 2*q' + 1 | q' ∈ A₂.start  }
-            accept := { 2*q' | q' ∈ A₁.accept } ∪ { 2*q' + 1 | q' ∈ A₂.accept }
+            start  := A₁'.start  ∪ A₂'.start
+            accept := A₁'.accept ∪ A₂'.accept
             step   := fun q c => match (q % 2), c with
-                | 0, _ => {2*q' | q' ∈ (A₁.step (q/2) c) }
-                | 1, _ => {2*q' | q' ∈ (A₂.step ((q-1)/2) c) }
+                | 0, _ => A₁'.step q c
+                | 1, _ => A₂'.step q c
                 | _, _ => ∅
         }
         use A
@@ -173,25 +204,8 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
         obtain ⟨ A₁, hA₁ ⟩ := h_r₁
         obtain ⟨ A₂, hA₂ ⟩ := h_r₂
 
-        let A₁' : εNFA alphabet ℕ := {
-            start  := { 2*q' | q' ∈ A₁.start  }
-            accept := { 2*q' | q' ∈ A₁.accept }
-            step   := fun q c => match (q % 2), c with
-                | 0, _ => {2*q' | q' ∈ (A₁.step (q/2) c) }
-                | _, _ => ∅
-        }
-
-        let A₂' : εNFA alphabet ℕ := {
-            start  := { 2*q' + 1 | q' ∈ A₂.start  }
-            accept := { 2*q' + 1 | q' ∈ A₂.accept }
-            step   := fun q c => match (q % 2), c with
-                | 1, _ => {2*q' + 1 | q' ∈ (A₂.step (q/2) c) }
-                | _, _ => ∅
-        }
-
-        have : A₁.accepts = A₁'.accepts := by sorry
-        have : A₂.accepts = A₂'.accepts := by sorry
-
+        let A₁' := to_0mod2_εNFA A₁
+        let A₂' := to_1mod2_εNFA A₂
 
         let A : εNFA alphabet ℕ := {
             start  := A₁'.start

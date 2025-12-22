@@ -10,7 +10,16 @@ open Set
 
 universe u v
 
-variable {alphabet : Type u} { Q : Type v}
+variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]
+
+-- def step_char (q : ℕ) (c : Option ℕ) : Finset ℕ := match q, c with
+--     | (0 : ℕ), (100 : ℕ) => {1}
+--     | (_ : ℕ), (_ : Option ℕ) => ∅
+
+-- #eval (step_char 0 (some 10))
+set_option diagnostics true
+
+open Classical
 
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
     induction r
@@ -53,9 +62,9 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
         let A : εNFA alphabet ℕ := {
             start  := {0}
             accept := {1}
-            step   := fun q a => match  (generalizing := true) q, a with
-                | 0, σ => {1}
-                | _, _ => ∅
+            step   := fun q a => match q, a with -- WTF???
+                | (0 : ℕ), (some σ) => {1}
+                | (_ : ℕ), (_ : Option alphabet) => ∅
         }
         use A
 
@@ -80,7 +89,14 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             case cons t c y _ h_step =>
                 cases c
                 case none => sorry
-                case some =>
+                case some c h_some =>
+                    have h_step_empty: A.step q_start c = ∅ := by
+
+                        simp_rw[A]
+                        by_cases c = σ
+                        case pos => sorry
+                        case neg  h_neq_σ =>
+                            rw[← h_neq_σ]
 
             if h_empty: x' = [] then
                 absurd h_ispath
@@ -131,10 +147,119 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
                     push_neg at h_nonempty_tail
                     absurd h_ispath
 
-    case plus =>
-        sorry
-    case comp =>
-        sorry
+    case plus r₁ r₂ h_r₁ h_r₂ =>
+        obtain ⟨ A₁, hA₁ ⟩ := h_r₁
+        obtain ⟨ A₂, hA₂ ⟩ := h_r₂
+
+        let A : εNFA alphabet ℕ := {
+            start  := { 2*q' | q' ∈ A₁.start  } ∪ { 2*q' + 1 | q' ∈ A₂.start  }
+            accept := { 2*q' | q' ∈ A₁.accept } ∪ { 2*q' + 1 | q' ∈ A₂.accept }
+            step   := fun q c => match (q % 2), c with
+                | 0, _ => {2*q' | q' ∈ (A₁.step (q/2) c) }
+                | 1, _ => {2*q' | q' ∈ (A₂.step ((q-1)/2) c) }
+                | _, _ => ∅
+        }
+        use A
+
+        simp [RegularExpression.plus]
+        rw [hA₁, hA₂, @Language.add_def, @Language.ext_iff]
+        intro x
+        constructor
+        case mp =>
+            intro h
+            cases h
+            case inl h_in_A₁ =>
+                sorry -- STEPPPPP
+            case inr h_in_A₂ =>
+                sorry -- STEPPPPP
+        case mpr =>
+            intro h_in_A
+            unfold εNFA.accepts at h_in_A
+            obtain ⟨ qf, ⟨ h_qf_accept, h_qf_eval ⟩ ⟩ := h_in_A
+            by_cases (qf % 2) = 0
+            case pos =>
+                left
+                let qf_A₁ := (qf/2)
+                have h_qf_accept : qf_A₁ ∈ A₁.accept := by
+                    sorry
+                have h_qf_eval : qf_A₁ ∈ A₁.eval x := by
+                    sorry
+                unfold εNFA.accepts
+                simp only [mem_setOf_eq]
+                exact Filter.frequently_principal.mp fun a => a h_qf_accept h_qf_eval
+            case neg =>
+                right
+                let qf_A₂ := ((qf-1)/2)
+                have h_qf_accept : qf_A₂ ∈ A₂.accept := by
+                    sorry
+                have h_qf_eval : qf_A₂ ∈ A₂.eval x := by
+                    sorry
+                unfold εNFA.accepts
+                simp only [mem_setOf_eq]
+                exact Filter.frequently_principal.mp fun a => a h_qf_accept h_qf_eval
+
+    case comp r₁ r₂ h_r₁ h_r₂ =>
+        obtain ⟨ A₁, hA₁ ⟩ := h_r₁
+        obtain ⟨ A₂, hA₂ ⟩ := h_r₂
+
+        let A₁' : εNFA alphabet ℕ := {
+            start  := { 2*q' | q' ∈ A₁.start  }
+            accept := { 2*q' | q' ∈ A₁.accept }
+            step   := fun q c => match (q % 2), c with
+                | 0, _ => {2*q' | q' ∈ (A₁.step (q/2) c) }
+                | _, _ => ∅
+        }
+        let A₂' : εNFA alphabet ℕ := {
+            start  := { 2*q' + 1 | q' ∈ A₂.start  }
+            accept := { 2*q' + 1 | q' ∈ A₂.accept }
+            step   := fun q c => match (q % 2), c with
+                | 1, _ => {2*q' + 1 | q' ∈ (A₂.step (q/2) c) }
+                | _, _ => ∅
+        }
+
+        have : (w : List alphabet) → w ∈ A₁.accepts ↔ w ∈ A₁'.accepts := by
+            sorry
+
+
+        let A : εNFA alphabet ℕ := {
+            start  := A₁'.start
+            accept := A₂'.accept
+            step   := fun q c => match (q % 2), c with
+                | 0, none =>
+                    if (q ∈ A₁'.accept) then
+                        A₁'.step q c ∪ A₂'.start
+                    else
+                        A₁'.step q c
+                | 0, _ => A₁'.step q c
+                | 1, _ => A₂'.step q c
+                | _, _ => ∅
+        }
+
+
+        use A
+
+        simp [RegularExpression.comp]
+        rw [hA₁, hA₂, @Language.mul_def, @Language.ext_iff]
+        intro x
+        constructor
+        case mp =>
+            intro h
+            rw[image2] at h
+            obtain ⟨ x₁, h_x₁, x₂, h_x₂, h_comp ⟩ := h
+            rw [A₁.mem_accepts_iff_exists_path] at h_x₁
+            rw [A₂.mem_accepts_iff_exists_path] at h_x₂
+            obtain ⟨ qs₁, qf₁, x₁', h_qs₁, h_qf₁, h_x₁', h_ispath1 ⟩ := h_x₁
+            obtain ⟨ qs₂, qf₂, x₂', h_qs₂, h_qf₂, h_x₂', h_ispath2 ⟩ := h_x₂
+            have h_connect_A₁_A₂ : A.IsPath (2*qf₁) (2*qs₂ + 1) [] := by
+                sorry
+
+            rw [A.mem_accepts_iff_exists_path]
+            use (qs₁*2), (qf₂*2 + 1), (x₁' ++ x₂')
+        case mpr =>
+            sorry
+
+
+
     case star =>
         sorry
 

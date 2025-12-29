@@ -244,7 +244,7 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
                 · exact mem_union_right A₁'.start h_s₁
                 · exact mem_union_right A₁'.accept h_s₂
                 · exact h_x'
-                · sorry -- TODO: define NFA containing another NFA
+                · sorry -- TODO: define NFA containing another NFA and establish paths are the same
 
         case mpr =>
             intro h_in_A
@@ -254,7 +254,7 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             by_cases (qs % 2) = 0
             case pos h_qs_is_0mod2 =>
                 left
-                rw [accepts_eq_0mod2_accepts A₁ A₁']
+                rw [accepts_eq_0mod2_accepts A₁ A₁' rfl]
                 rw [A₁'.mem_accepts_iff_exists_path]
                 use qs, qf, x'
                 refine ⟨ ?_, ?_, ?_, ?_ ⟩
@@ -295,11 +295,60 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
                         constructor
                         · exact h_step
                         · apply h_induction
-                          have : t % 2 = q₁ % 2 := by
-                            exact Eq.symm (if_0mod2_step_is_0mod2 A₁ (to_0mod2_εNFA A₁) q₁ t c rfl h_step)
+                          have :  q₁ % 2 = t % 2 := by
+                            exact if_0mod2_step_is_0mod2 A₁ A₁' q₁ t c rfl h_step
                           rw[h_q₁_0mod2] at this
-                          exact this
+                          exact Eq.symm this
                   exact this qs qf x' h_qs_is_0mod2 h_A_path
+            case neg h_qs_is_1mod2 =>
+                simp at h_qs_is_1mod2
+                right
+                rw [accepts_eq_1mod2_accepts A₂ A₂' rfl]
+                rw [A₂'.mem_accepts_iff_exists_path]
+                use qs, qf, x'
+                refine ⟨ ?_, ?_, ?_, ?_ ⟩
+                · simp [A] at h_qs
+                  cases h_qs
+                  case inl h_in_A₁' =>
+                    absurd h_qs_is_1mod2
+                    simp
+                    exact if_0mod2_qs_is_0mod2 A₁ A₁' qs rfl h_in_A₁'
+                  case inr h_in_A₂' => exact h_in_A₂'
+                · by_cases (qf % 2) = 1
+                  case pos h_qf_is_1mod2 =>
+                    simp [A] at h_qf
+                    cases h_qf
+                    case inr h_qf_in_A₂'_accept => exact h_qf_in_A₂'_accept
+                    case inl h_qf_in_A₁'_accept =>
+                        have : qf % 2 = 0 := by
+                            exact if_0mod2_qf_is_0mod2 A₁ A₁' qf rfl h_qf_in_A₁'_accept
+                        absurd this
+                        simp [h_qf_is_1mod2, this]
+                  case neg h_qf_is_0mod2 =>
+                    simp at h_qf_is_0mod2
+                    absurd h_qf_is_0mod2
+                    simp
+                    have : qs % 2 = qf % 2 := by exact h_A_path_implies_eq_mod2 qs qf x' h_A_path
+                    rw [h_qs_is_1mod2] at this
+                    exact id (Eq.symm this)
+                · exact h_x'
+                · have : (q₁ : ℕ) → (q₂ : ℕ) → (y' : List (Option alphabet)) → (q₁ % 2 = 1) → (A.IsPath q₁ q₂ y') → (A₂'.IsPath q₁ q₂ y') := by
+                    intro q₁ q₂ y' h_q₁_1mod2 h_A_path
+                    induction h_A_path
+                    case nil qs => exact (εNFA.isPath_nil A₂').mpr rfl
+                    case cons _ _ t q₁ q₂ c tail h_step h_path h_induction =>
+                        unfold A at h_step
+                        simp only at *
+                        simp_rw [h_q₁_1mod2] at h_step
+                        simp at h_step
+                        constructor
+                        · exact h_step
+                        · apply h_induction
+                          have : t % 2 = q₁ % 2 := by
+                            exact Eq.symm (if_1mod2_step_is_1mod2 A₂ A₂' q₁ t c rfl h_step)
+                          rw[h_q₁_1mod2] at this
+                          exact this
+                  exact this qs qf x' h_qs_is_1mod2 h_A_path
 
     case comp r₁ r₂ h_r₁ h_r₂ =>
         obtain ⟨ A₁, hA₁ ⟩ := h_r₁
@@ -311,15 +360,23 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
         let A : εNFA alphabet ℕ := {
             start  := A₁'.start
             accept := A₂'.accept
-            step   := fun q c => match (q % 2), c with
-                | 0, none =>
-                    if (q ∈ A₁'.accept) then
+            step   := fun q c =>
+                if q % 2 = 0 then
+                    if q ∈ A₁'.accept ∧ c = none then
                         A₁'.step q c ∪ A₂'.start
                     else
                         A₁'.step q c
-                | 0, _ => A₁'.step q c
-                | 1, _ => A₂'.step q c
-                | _, _ => ∅
+                else
+                    A₂'.step q c
+            -- match (q % 2), c with
+            --     | 0, none =>
+            --         if (q ∈ A₁'.accept) then
+            --             A₁'.step q c ∪ A₂'.start
+            --         else
+            --             A₁'.step q c
+            --     | 0, _ => A₁'.step q c
+            --     | 1, _ => A₂'.step q c
+            --     | _, _ => ∅
         }
         use A
 
@@ -331,19 +388,41 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             intro h
             rw[image2] at h
             obtain ⟨ x₁, h_x₁, x₂, h_x₂, h_comp ⟩ := h
-            rw [A₁.mem_accepts_iff_exists_path] at h_x₁
-            rw [A₂.mem_accepts_iff_exists_path] at h_x₂
+            rw [accepts_eq_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_x₁
+            rw [accepts_eq_1mod2_accepts A₂ A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_x₂
             obtain ⟨ qs₁, qf₁, x₁', h_qs₁, h_qf₁, h_x₁', h_ispath1 ⟩ := h_x₁
             obtain ⟨ qs₂, qf₂, x₂', h_qs₂, h_qf₂, h_x₂', h_ispath2 ⟩ := h_x₂
-            have h_connect_A₁_A₂ : A.IsPath (2*qf₁) (2*qs₂ + 1) [] := by
-                sorry
-
             rw [A.mem_accepts_iff_exists_path]
-            use (qs₁*2), (qf₂*2 + 1), (x₁' ++ x₂')
+            use qs₁, qf₂, (x₁' ++ x₂')
+            refine ⟨ ?_, ?_, ?_, ?_ ⟩
+            · exact h_qs₁
+            · exact h_qf₂
+            · rw [Eq.symm h_comp]
+              subst h_x₁' h_x₂'
+              exact List.reduceOption_append x₁' x₂'
+            · rw [εNFA.isPath_append]
+              use qf₁
+              constructor
+              case left =>
+                sorry -- TODO: again, containing and having the same path is needed
+              case right =>
+                sorry
+                -- have h_qf₁_0mod2: qf₁ % 2 = 0 := by
+                --     exact if_0mod2_qf_is_0mod2 A₁ (to_0mod2_εNFA A₁) qf₁ rfl h_qf₁
+                -- have h_εstep : A.IsPath qf₁ qs₂ [none] := by
+                --     subst A
+                --     simp [h_qf₁_0mod2, h_qf₁, h_qs₂]
+                -- have h_path_in_A₂' : A.IsPath qs₂ qf₂ x₂' := by
+                --     sorry -- TODO
+                -- have : ([none] ++ x₂').reduceOption = x₂ := by
+                --     exact h_x₂'
+                -- have : qs₂ ∈ A.εClosure {qf₁} := by
+                --     exact?
+
+                -- apply A.mem_evalFrom_iff_exists_path.mp ⟨ qs₂, qf₂ ⟩
+
         case mpr =>
             sorry
-
-
 
     case star =>
         sorry

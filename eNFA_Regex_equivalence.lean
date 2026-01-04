@@ -28,7 +28,7 @@ def to_1mod2_εNFA (A : εNFA alphabet ℕ) : (εNFA alphabet ℕ) :=
         start  := { 2*q' + 1 | q' ∈ A.start  }
         accept := { 2*q' + 1 | q' ∈ A.accept }
         step   := fun q c => match (q % 2), c with
-            | 0, _ => {2*q' + 1 | q' ∈ (A.step (q/2) c) }
+            | 1, _ => {2*q' + 1 | q' ∈ (A.step (q/2) c) }
             | _, _ => ∅
         : εNFA alphabet ℕ
     }
@@ -43,35 +43,112 @@ lemma accepts_eq_1mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ
 
 lemma if_0mod2_step_is_0mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q₁ : ℕ) (q₂ : ℕ) (σ : Option alphabet):
     (A' = to_0mod2_εNFA A) → (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = q₂ % 2) := by
-    sorry
+    intro hA' hmem
+    subst hA'
+    by_cases h : q₁ % 2 = 0
+    ·
+        have : q₂ ∈ {2*q' | q' ∈ A.step (q₁ / 2) σ} := by
+            simpa [to_0mod2_εNFA, h] using hmem
+        rcases this with ⟨q', _, rfl⟩
+        have h2 : (2 * q') % 2 = 0 :=
+            Nat.mod_eq_zero_of_dvd (dvd_mul_right 2 q')
+        simpa [h, h2]
+    ·
+        have : q₂ ∈ (∅ : Set ℕ) := by
+            simp [to_0mod2_εNFA, h] at hmem
+        simp at this
 
 lemma if_1mod2_step_is_1mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q₁ : ℕ) (q₂ : ℕ) (σ : Option alphabet):
     (A' = to_1mod2_εNFA A) → (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = q₂ % 2) := by
-    sorry
+    intro hA' hmem
+    subst hA'
+    by_cases h : q₁ % 2 = 0
+    ·
+        have : q₂ ∈ (∅ : Set ℕ) := by
+            simp [to_1mod2_εNFA, h] at hmem
+        simp at this
+    ·
+        have : q₂ ∈ {2*q' + 1 | q' ∈ A.step (q₁ / 2) σ} := by
+            simp [to_1mod2_εNFA, h] at hmem
+            simp only [mem_setOf_eq]
+            simp_all only [Nat.mod_two_not_eq_zero, mem_setOf_eq]
+        rcases this with ⟨q', hq', rfl⟩
+
+        have hodd : q₁ % 2 = 1 := by
+
+            have : q₁ % 2 = 0 ∨ q₁ % 2 = 1 := by
+                exact Nat.mod_two_eq_zero_or_one q₁
+            cases this with
+            | inl hz => exact (h hz).elim
+            | inr ho => exact ho
+
+        have h2 : (2*q' + 1) % 2 = 1 := by
+            simp
+        simp [hodd, h2]
 
 lemma if_0mod2_path_is_0mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q₁ : ℕ) (q₂ : ℕ) (x : List (Option alphabet)):
     (A' = to_0mod2_εNFA A) → (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
-    sorry
+    intro hA' hpath
+    subst hA'
+    induction hpath with
+    | nil s =>
+        simp only
+    | cons t s u a x hstep hrest ih =>
+        have hst : s % 2 = t % 2 := by
+            exact if_0mod2_step_is_0mod2
+                (A := A) (A' := to_0mod2_εNFA A)
+                (q₁ := s) (q₂ := t) (σ := a)
+                rfl hstep
+        exact Eq.trans hst ih
+
 
 lemma if_1mod2_path_is_1mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q₁ : ℕ) (q₂ : ℕ) (x : List (Option alphabet)):
     (A' = to_1mod2_εNFA A) → (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
-    sorry
+    intro hA' hpath
+    subst hA'
+    induction hpath with
+    | nil s =>
+        simp only
+    | cons t s u a x hstep hrest ih =>
+        have hst : s % 2 = t % 2 := by
+            exact if_1mod2_step_is_1mod2
+                (A := A) (A' := to_1mod2_εNFA A)
+                (q₁ := s) (q₂ := t) (σ := a)
+                rfl hstep
+        exact Eq.trans hst ih
 
 lemma if_0mod2_qs_is_0mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q : ℕ):
     (A' = to_0mod2_εNFA A) → q ∈ A'.start → (q % 2 = 0) := by
-    sorry
+    intro hA' hq
+    subst hA'
+    simp [to_0mod2_εNFA] at hq
+    rcases hq with ⟨q', _hq'inStart, rfl⟩
+    exact Nat.mod_eq_zero_of_dvd (dvd_mul_right 2 q')
+
 
 lemma if_1mod2_qs_is_1mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q : ℕ):
     (A' = to_1mod2_εNFA A) → q ∈ A'.start → (q % 2 = 1) := by
-    sorry
+    intro hA' hq
+    subst hA'
+    simp [to_1mod2_εNFA] at hq
+    rcases hq with ⟨q', _hq'inStart, rfl⟩
+    simp only [Nat.mul_add_mod_self_left, Nat.mod_succ]
 
 lemma if_0mod2_qf_is_0mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q : ℕ):
     (A' = to_0mod2_εNFA A) → q ∈ A'.accept → (q % 2 = 0) := by
-    sorry
+    intro hA' hq
+    subst hA'
+    simp [to_0mod2_εNFA] at hq
+    rcases hq with ⟨q', _hq'inStart, rfl⟩
+    exact Nat.mod_eq_zero_of_dvd (dvd_mul_right 2 q')
 
 lemma if_1mod2_qf_is_1mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q : ℕ):
     (A' = to_1mod2_εNFA A) → q ∈ A'.accept → (q % 2 = 1) := by
-    sorry
+    intro hA' hq
+    subst hA'
+    simp [to_1mod2_εNFA] at hq
+    rcases hq with ⟨q', _hq'inStart, rfl⟩
+    simp only [Nat.mul_add_mod_self_left, Nat.mod_succ]
 
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
     induction r

@@ -309,7 +309,30 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
                 · exact mem_union_left A₂'.start h_s₁
                 · exact mem_union_left A₂'.accept h_s₂
                 · exact h_x'
-                · sorry -- TODO: define NFA containing another NFA
+                ·   have hs1_even : s₁ % 2 = 0 :=
+                        if_0mod2_qs_is_0mod2 (A := A₁) (A' := A₁') (q := s₁) rfl h_s₁
+                    have thisA1 :
+                        ∀ {q₁ q₂ : ℕ} {y : List (Option alphabet)},
+                        q₁ % 2 = 0 → A₁'.IsPath q₁ q₂ y → A.IsPath q₁ q₂ y := by
+                        intro q₁ q₂ y hq1_even hpath
+                        induction hpath with
+                        | nil q =>
+                        exact (εNFA.isPath_nil A).mpr rfl
+                        | cons t q₁ q₂ a tail h_step h_rest ih =>
+                            constructor
+                            ·
+                                unfold A
+                                simpa [hq1_even] using h_step
+                            ·
+                                have hpar : q₁ % 2 = t % 2 :=
+                                    if_0mod2_step_is_0mod2
+                                        (A := A₁) (A' := A₁') (q₁ := q₁) (q₂ := t) (σ := a)
+                                        rfl h_step
+                                have ht_even : t % 2 = 0 := by
+                                    simpa [hq1_even] using hpar.symm
+                                exact ih ht_even
+                    exact thisA1 hs1_even h_A₁'_path
+                exact rfl
 
             case inr h_in_A₂ =>
                 rw [accepts_eq_1mod2_accepts A₂ A₂'] at h_in_A₂
@@ -321,7 +344,32 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
                 · exact mem_union_right A₁'.start h_s₁
                 · exact mem_union_right A₁'.accept h_s₂
                 · exact h_x'
-                · sorry -- TODO: define NFA containing another NFA and establish paths are the same
+                ·   have hs1_odd : s₁ % 2 = 1 :=
+                        if_1mod2_qs_is_1mod2 (A := A₂) (A' := A₂') (q := s₁) rfl h_s₁
+                    have thisA1 :
+                        ∀ {q₁ q₂ : ℕ} {y : List (Option alphabet)},
+                        q₁ % 2 = 1 → A₂'.IsPath q₁ q₂ y → A.IsPath q₁ q₂ y := by
+                        intro q₁ q₂ y hq1_odd hpath
+                        induction hpath with
+                        | nil q =>
+                        exact (εNFA.isPath_nil A).mpr rfl
+                        | cons t q₁ q₂ a tail h_step h_rest ih =>
+                            constructor
+                            ·
+                                unfold A
+                                simpa [hq1_odd] using h_step
+                            ·
+                                have hpar : q₁ % 2 = t % 2 :=
+                                   if_1mod2_step_is_1mod2
+                                        (A := A₂) (A' := A₂') (q₁ := q₁) (q₂ := t) (σ := a)
+                                        rfl h_step
+                                have ht_odd : t % 2 = 1 := by
+                                    simpa [hq1_odd] using hpar.symm
+                                exact ih ht_odd
+                    exact thisA1 hs1_odd h_A₂'_path
+                exact rfl
+
+
 
         case mpr =>
             intro h_in_A
@@ -438,23 +486,19 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
             start  := A₁'.start
             accept := A₂'.accept
             step   := fun q c =>
-                if q % 2 = 0 then
-                    if q ∈ A₁'.accept ∧ c = none then
-                        A₁'.step q c ∪ A₂'.start
-                    else
-                        A₁'.step q c
+                if hq : q % 2 = 0 then
+                    match c with
+                    | none =>
+                        if q ∈ A₁'.accept then
+                            A₁'.step q none ∪ A₂'.start
+                        else
+                            A₁'.step q none
+                    | some a =>
+                        A₁'.step q (some a)
                 else
                     A₂'.step q c
-            -- match (q % 2), c with
-            --     | 0, none =>
-            --         if (q ∈ A₁'.accept) then
-            --             A₁'.step q c ∪ A₂'.start
-            --         else
-            --             A₁'.step q c
-            --     | 0, _ => A₁'.step q c
-            --     | 1, _ => A₂'.step q c
-            --     | _, _ => ∅
         }
+
         use A
 
         simp [RegularExpression.comp]
@@ -481,22 +525,76 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
               use qf₁
               constructor
               case left =>
-                sorry -- TODO: again, containing and having the same path is needed
-              case right =>
-                sorry
-                -- have h_qf₁_0mod2: qf₁ % 2 = 0 := by
-                --     exact if_0mod2_qf_is_0mod2 A₁ (to_0mod2_εNFA A₁) qf₁ rfl h_qf₁
-                -- have h_εstep : A.IsPath qf₁ qs₂ [none] := by
-                --     subst A
-                --     simp [h_qf₁_0mod2, h_qf₁, h_qs₂]
-                -- have h_path_in_A₂' : A.IsPath qs₂ qf₂ x₂' := by
-                --     sorry -- TODO
-                -- have : ([none] ++ x₂').reduceOption = x₂ := by
-                --     exact h_x₂'
-                -- have : qs₂ ∈ A.εClosure {qf₁} := by
-                --     exact?
+                have hs1_even : qs₁ % 2 = 0 :=
+                        if_0mod2_qs_is_0mod2 (A := A₁) (A' := A₁') (q := qs₁) rfl h_qs₁
+                have thisA1 :
+                        ∀ {q₁ q₂ : ℕ} {y : List (Option alphabet)},
+                        q₁ % 2 = 0 → A₁'.IsPath q₁ q₂ y → A.IsPath q₁ q₂ y := by
+                        intro q₁ q₂ y hq1_even hpath
+                        induction hpath with
+                        | nil q =>
+                        exact (εNFA.isPath_nil A).mpr rfl
+                        | cons t q₁ q₂ a tail h_step h_rest ih =>
+                            constructor
+                            ·
+                                unfold A
+                                cases a with
+                                | some a' =>
+                                simpa [hq1_even] using h_step
+                                | none =>
+                                by_cases hacc : q₁ ∈ A₁'.accept
+                                ·
+                                    have : t ∈ A₁'.step q₁ none := by
+                                        simpa using h_step
+                                    simpa [hq1_even, hacc] using Or.inl this
+                                ·
+                                    simpa [hq1_even, hacc] using h_step
+                            ·
+                                have hpar : q₁ % 2 = t % 2 :=
+                                    if_0mod2_step_is_0mod2
+                                        (A := A₁) (A' := A₁') (q₁ := q₁) (q₂ := t) (σ := a)
+                                        rfl h_step
+                                have ht_even : t % 2 = 0 := by
+                                    simpa [hq1_even] using hpar.symm
+                                exact ih ht_even
 
-                -- apply A.mem_evalFrom_iff_exists_path.mp ⟨ qs₂, qf₂ ⟩
+
+                exact thisA1 hs1_even h_ispath1
+              case right =>
+                have h_qf1_even : qf₁ % 2 = 0 :=
+                        if_0mod2_qf_is_0mod2 (A := A₁) (A' := A₁') (q := qf₁) rfl h_qf₁
+                have h_step_mem : qs₂ ∈ A.step qf₁ none := by
+                    unfold A
+                    simp [h_qf1_even, h_qf₁]
+                    exact mem_union_right (A₁'.step qf₁ none) h_qs₂
+                have h_epsilon : A.IsPath qf₁ qs₂ [none] := by
+                    constructor
+                    · exact h_step_mem
+                    · exact (εNFA.isPath_nil A).mpr rfl
+                have hs1_odd : qs₂ % 2 = 1 :=
+                        if_1mod2_qs_is_1mod2 (A := A₂) (A' := A₂') (q := qs₂) rfl h_qs₂
+                have thisA1 :
+                        ∀ {q₁ q₂ : ℕ} {y : List (Option alphabet)},
+                        q₁ % 2 = 1 → A₂'.IsPath q₁ q₂ y → A.IsPath q₁ q₂ y := by
+                        intro q₁ q₂ y hq1_odd hpath
+                        induction hpath with
+                        | nil q =>
+                        exact (εNFA.isPath_nil A).mpr rfl
+                        | cons t q₁ q₂ a tail h_step h_rest ih =>
+                            constructor
+                            ·
+                                unfold A
+                                simpa [hq1_odd] using h_step
+                            ·
+                                have hpar : q₁ % 2 = t % 2 :=
+                                   if_1mod2_step_is_1mod2
+                                        (A := A₂) (A' := A₂') (q₁ := q₁) (q₂ := t) (σ := a)
+                                        rfl h_step
+                                have ht_odd : t % 2 = 1 := by
+                                    simpa [hq1_odd] using hpar.symm
+                                exact ih ht_odd
+
+
 
         case mpr =>
             sorry

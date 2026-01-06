@@ -17,25 +17,23 @@ set_option linter.unusedSectionVars false
 
 namespace εNFA
 
-def to_0mod2_εNFA (A : εNFA alphabet ℕ) : (εNFA alphabet ℕ) :=
-    {
-        start  := { 2*q' | q' ∈ A.start  }
-        accept := { 2*q' | q' ∈ A.accept }
-        step   := fun q c => match (q % 2), c with
-            | 0, _ => {2*q' | q' ∈ (A.step (q/2) c) }
-            | _, _ => ∅
-        : εNFA alphabet ℕ
-    }
+def to_0mod2_εNFA (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
+    start  := { 2*q' | q' ∈ A.start  }
+    accept := { 2*q' | q' ∈ A.accept }
+    step   := fun q c => match (q % 2), c with
+        | 0, _ => {2*q' | q' ∈ (A.step (q/2) c) }
+        | _, _ => ∅
+    : εNFA alphabet ℕ
+}
 
-def to_1mod2_εNFA (A : εNFA alphabet ℕ) : (εNFA alphabet ℕ) :=
-    {
-        start  := { 2*q' + 1 | q' ∈ A.start  }
-        accept := { 2*q' + 1 | q' ∈ A.accept }
-        step   := fun q c => match (q % 2), c with
-            | 1, _ => {2*q' + 1 | q' ∈ (A.step (q/2) c) }
-            | _, _ => ∅
-        : εNFA alphabet ℕ
-    }
+def to_1mod2_εNFA (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
+    start  := { 2*q' + 1 | q' ∈ A.start  }
+    accept := { 2*q' + 1 | q' ∈ A.accept }
+    step   := fun q c => match (q % 2), c with
+        | 1, _ => {2*q' + 1 | q' ∈ (A.step (q/2) c) }
+        | _, _ => ∅
+    : εNFA alphabet ℕ
+}
 
 def contains (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) :=
     ∀ (q : ℕ), ∀ (σ: Option alphabet), A'.step q σ ⊆ A.step q σ
@@ -309,24 +307,30 @@ lemma if_1mod2_qf_is_1mod2 (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (q
     rcases hq with ⟨q', _hq'inStart, rfl⟩
     simp only [Nat.mul_add_mod_self_left, Nat.mod_succ]
 
+
+def εNFA_zero : εNFA alphabet ℕ := {
+    start  := ∅
+    accept := ∅
+    step   := fun _ _ => ∅
+}
+
+
 lemma Zero_Regex_to_εNFA :
     ∃ (A: εNFA alphabet ℕ), RegularExpression.zero.matches' = A.accepts := by
-        let A : εNFA alphabet ℕ := {
-            start  := ∅
-            accept := ∅
-            step   := fun q a => ∅
-        }
+        let A : εNFA alphabet ℕ := εNFA_zero
         use A
         simp only [RegularExpression.zero_def, RegularExpression.matches'_zero, Language.zero_def, εNFA.accepts]
-        simp only [mem_empty_iff_false, false_and, exists_false, setOf_false, A]
+        simp only [mem_empty_iff_false, false_and, exists_false, setOf_false, A, εNFA_zero]
+
+def εNFA_epsilon : εNFA alphabet ℕ := {
+    start  := {0}
+    accept := {0}
+    step   := fun _ _ => ∅
+}
 
 lemma Epsilon_Regex_to_εNFA :
     ∃ (A: εNFA alphabet ℕ), RegularExpression.epsilon.matches' = A.accepts := by
-        let A : εNFA alphabet ℕ := {
-            start  := {0}
-            accept := {0}
-            step   := fun q a => ∅
-        }
+        let A : εNFA alphabet ℕ := εNFA_epsilon
         use A
         simp only [RegularExpression.one_def, RegularExpression.matches'_epsilon, Language.one_def, @Language.ext_iff]
         intro x
@@ -345,17 +349,19 @@ lemma Epsilon_Regex_to_εNFA :
             case cons _ _ _ h_step _ =>
                 exact False.elim h_step
 
+def εNFA_char (σ : alphabet) : εNFA alphabet ℕ := {
+    start  := {0}
+    accept := {1}
+    step   := fun q a =>
+        if (q = 0) ∧ (a = (some σ)) then
+            {1}
+        else
+            ∅
+}
+
 lemma Char_Regex_to_εNFA (σ : alphabet) :
     ∃ (A: εNFA alphabet ℕ), (RegularExpression.char σ).matches' = A.accepts := by
-        let A : εNFA alphabet ℕ := {
-            start  := {0}
-            accept := {1}
-            step   := fun q a =>
-                if (q = 0) ∧ (a = (some σ)) then
-                    {1}
-                else
-                    ∅
-        }
+        let A := εNFA_char σ
         use A
 
         simp only [RegularExpression.matches'_char, @Language.ext_iff]
@@ -371,7 +377,7 @@ lemma Char_Regex_to_εNFA (σ : alphabet) :
             · rfl
             · rfl
             · exact id (Eq.symm hx)
-            · simp only [A, and_self, ↓reduceIte, mem_singleton_iff]
+            · simp only [A, εNFA_char, and_self, ↓reduceIte, mem_singleton_iff]
 
         case mpr =>
             rintro ⟨ q_start, q_accept, x', h_q_start, h_q_accept, h_x', h_ispath ⟩
@@ -379,20 +385,20 @@ lemma Char_Regex_to_εNFA (σ : alphabet) :
             cases h_ispath
             case nil =>
                 subst h_x'
-                simp_all only [mem_singleton_iff, zero_ne_one, A]
+                simp_all only [mem_singleton_iff, zero_ne_one, A, εNFA_char]
             case cons t c tail _ h_step =>
                 cases c
                 case none h_none =>
                     absurd h_none
                     subst A
-                    simp
+                    simp [εNFA_char]
                 case some c h_some =>
                     by_cases c = σ
                     case neg h_σ' =>
                         absurd h_some
                         subst A
                         subst h_x'
-                        simp_all only [mem_singleton_iff, Option.some.injEq, and_false, ↓reduceIte,
+                        simp_all only [εNFA_char, mem_singleton_iff, Option.some.injEq, and_false, ↓reduceIte,
                           mem_empty_iff_false]
                     case pos h_σ =>
                         cases tail
@@ -404,14 +410,24 @@ lemma Char_Regex_to_εNFA (σ : alphabet) :
                         case cons c' _ =>
                             rw[h_σ] at h_some
                             unfold A at h_some
-                            simp at h_some
+                            simp [εNFA_char] at h_some
                             rw [h_some.right] at h_step
                             cases h_step
                             case cons t₂ h_t₂ _ =>
                                 absurd h_t₂
                                 subst A
-                                simp only [one_ne_zero, false_and, ↓reduceIte, mem_empty_iff_false,
+                                simp only [εNFA_char, one_ne_zero, false_and, ↓reduceIte, mem_empty_iff_false,
                                   not_false_eq_true]
+
+def εNFA_plus (A₁: εNFA alphabet ℕ) (A₂: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
+    start  := A₁.start  ∪ A₂.start
+    accept := A₁.accept ∪ A₂.accept
+    step   := fun q c =>
+        if (q % 2 = 0) then
+            A₁.step q c
+        else
+            A₂.step q c
+}
 
 lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
      (∃ (A₁: εNFA alphabet ℕ), r₁.matches' = A₁.accepts) →
@@ -424,33 +440,21 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
     let A₁' := A₁.to_0mod2_εNFA
     let A₂' := A₂.to_1mod2_εNFA
 
-    let A : εNFA alphabet ℕ := {
-        start  := A₁'.start  ∪ A₂'.start
-        accept := A₁'.accept ∪ A₂'.accept
-        step   := fun q c =>
-            if (q % 2 = 0) then
-                A₁'.step q c
-            else
-                A₂'.step q c
-        -- match (q % 2), c with
-        --     | 0, _ => A₁'.step q c
-        --     | 1, _ => A₂'.step q c
-        --     | _, _ => ∅
-    }
+    let A : εNFA alphabet ℕ := εNFA_plus A₁' A₂'
     use A
 
     have h_A_contains_A₁' : A.contains A₁' := by
         unfold εNFA.contains
         intro q σ
         by_cases q % 2 = 0
-        case pos h_0mod2 => simp [A, h_0mod2]
+        case pos h_0mod2 => simp [A, εNFA_plus, h_0mod2]
         case neg h_1mod2 => simp [A₁', to_0mod2_εNFA]
 
     have h_A_contains_A₂' : A.contains A₂' := by
         unfold εNFA.contains
         intro q σ
         by_cases q % 2 = 1
-        case pos h_1mod2 => simp [A, h_1mod2]
+        case pos h_1mod2 => simp [A, εNFA_plus, h_1mod2]
         case neg h_0mod2 => simp [A₂', to_1mod2_εNFA]
 
     have h_A_path_implies_eq_mod2: (q₁ : ℕ) → (q₂ : ℕ) → (y' : List (Option alphabet)) → (A.IsPath q₁ q₂ y') → (q₁ % 2 = q₂ % 2) := by
@@ -463,10 +467,10 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
             simp only at *
             by_cases q₁ % 2 = 0
             case pos h_q₁_0mod2 =>
-                simp_rw [h_q₁_0mod2] at h_step
+                simp_rw [εNFA_plus, h_q₁_0mod2] at h_step
                 exact if_0mod2_step_is_0mod2 A₁ A₁' q₁ t c rfl h_step
             case neg h_q₁_1mod2 =>
-                simp_rw [h_q₁_1mod2] at h_step
+                simp_rw [εNFA_plus, h_q₁_1mod2] at h_step
                 exact if_1mod2_step_is_1mod2 A₂ A₂' q₁ t c rfl h_step
 
     simp
@@ -542,7 +546,7 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
                   case cons _ _ t q₁ q₂ c tail h_step h_path h_induction =>
                       unfold A at h_step
                       simp only at *
-                      simp_rw [h_q₁_0mod2] at h_step
+                      simp_rw [εNFA_plus, h_q₁_0mod2] at h_step
                       simp at h_step
                       constructor
                       · exact h_step
@@ -591,7 +595,7 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
                   case cons _ _ t q₁ q₂ c tail h_step h_path h_induction =>
                       unfold A at h_step
                       simp only at *
-                      simp_rw [h_q₁_1mod2] at h_step
+                      simp_rw [εNFA_plus, h_q₁_1mod2] at h_step
                       simp at h_step
                       constructor
                       · exact h_step
@@ -601,6 +605,19 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
                         rw[h_q₁_1mod2] at this
                         exact this
               exact this qs qf x' h_qs_is_1mod2 h_A_path
+
+def εNFA_comp (A₁: εNFA alphabet ℕ) (A₂: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
+    start  := A₁.start
+    accept := A₂.accept
+    step   := fun q c =>
+        if q % 2 = 0 then
+            if q ∈ A₁.accept ∧ c = none then
+                A₁.step q c ∪ A₂.start
+            else
+                A₁.step q c
+        else
+            A₂.step q c
+}
 
 lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
      (∃ (A₁: εNFA alphabet ℕ), r₁.matches' = A₁.accepts) →
@@ -613,18 +630,7 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
     let A₁' := to_0mod2_εNFA A₁
     let A₂' := to_1mod2_εNFA A₂
 
-    let A : εNFA alphabet ℕ := {
-        start  := A₁'.start
-        accept := A₂'.accept
-        step   := fun q c =>
-            if hq : q % 2 = 0 then
-                if q ∈ A₁'.accept ∧ c = none then
-                    A₁'.step q c ∪ A₂'.start
-                else
-                    A₁'.step q c
-            else
-                A₂'.step q c
-    }
+    let A : εNFA alphabet ℕ := εNFA_comp A₁' A₂'
     use A
 
     have h_A_contains_A₁' : A.contains A₁' := by
@@ -632,7 +638,7 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         intro q σ
         by_cases q % 2 = 0
         case pos h_0mod2 =>
-            simp [A, h_0mod2]
+            simp [A, εNFA_comp, h_0mod2]
             split_ifs <;>
             simp only [subset_union_left, subset_refl]
         case neg h_1mod2 => simp [A₁', to_0mod2_εNFA]
@@ -641,7 +647,7 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         unfold εNFA.contains
         intro q σ
         by_cases q % 2 = 1
-        case pos h_1mod2 => simp [A, h_1mod2]
+        case pos h_1mod2 => simp [A, εNFA_comp, h_1mod2]
         case neg h_0mod2 => simp [A₂', to_1mod2_εNFA]
 
 
@@ -674,7 +680,7 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
                     if_0mod2_qf_is_0mod2 (A := A₁) (A' := A₁') (q := qf₁) rfl h_qf₁
             have h_step_mem : qs₂ ∈ A.step qf₁ none := by
                 unfold A
-                simp [h_qf1_even, h_qf₁]
+                simp [εNFA_comp, h_qf1_even, h_qf₁]
                 exact mem_union_right (A₁'.step qf₁ none) h_qs₂
             have h_epsilon : A.IsPath qf₁ qs₂ [none] := by
                 constructor
@@ -736,29 +742,117 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         · exact h_b_accept
         · exact Eq.symm h_ab
 
+def εNFA_kstar (A: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
+    start  := A.start ∪ {1}
+    accept := A.accept ∪ {1}
+    step   := fun q c =>
+        if q ∈ A.accept ∪ {1} ∧ c = none then
+            A.step q c ∪ A.start ∪ {1}
+        else
+            A.step q c
+}
+
+lemma kstar_append : (A A' : εNFA alphabet ℕ) → (y y₁ y₂ : List alphabet) → (A = εNFA_kstar A') → (y = y₁ ++ y₂) → (y₁ ∈ A.accepts) → (y₂ ∈ A.accepts) → y ∈ A.accepts := by
+    intro A A' y y₁ y₂ h_A' h_y h_y₁_acc h_y₂_acc
+    rw[mem_accepts_iff_exists_path]
+    rw[mem_accepts_iff_exists_path] at h_y₁_acc h_y₂_acc
+    obtain ⟨ qs₁, qf₁, y₁', h_qs₁, h_qf₁, h_y₁', h_y₁_path ⟩ := h_y₁_acc
+    obtain ⟨ qs₂, qf₂, y₂', h_qs₂, h_qf₂, h_y₂', h_y₂_path ⟩ := h_y₂_acc
+    let y' := y₁' ++ ([none] ++ y₂')
+    use qs₁, qf₂, y'
+
+    have h_y' : y'.reduceOption = y := by
+        subst h_y₁' h_y₂' h_y y'
+        exact List.reduceOption_append y₁' ([none] ++ y₂')
+
+    have h_connect : A.IsPath qf₁ qs₂ [none] := by
+        simp
+        simp[h_A', εNFA_kstar] at h_qf₁
+        simp[h_A', εNFA_kstar] at h_qs₂
+
+        cases h_qs₂
+        case inl h_qs₂ =>
+            subst qs₂
+            simp [h_A', εNFA_kstar, h_qf₁]
+        case inr h_qs₂ =>
+            simp [h_A', εNFA_kstar, h_qf₁]
+            right; right
+            exact h_qs₂
+
+    have h_full_path : A.IsPath qs₁ qf₂ y' := by
+        rw [A.isPath_append]
+        use qf₁
+        constructor
+        case left => exact h_y₁_path
+        case right => rw [A.isPath_append]; use qs₂
+
+    exact ⟨ h_qs₁, h_qf₂, h_y', h_full_path ⟩
+
+
+lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
+    (∃ (Ar: εNFA alphabet ℕ), r.matches' = Ar.accepts) →
+    ∃ (A: εNFA alphabet ℕ), (r.star).matches' = A.accepts := by
+    intro h_r
+    obtain ⟨ Ar, hAr ⟩ := h_r
+    let A' := Ar.to_0mod2_εNFA
+    let A : εNFA alphabet ℕ := εNFA_kstar A'
+    use A
+
+    have h_contains: A.contains A' := by
+        unfold εNFA.contains
+        intro q σ
+        simp[A, εNFA_kstar]
+        rw [@insert_eq, @union_left_comm]
+        split_ifs
+        case pos => exact subset_union_left
+        case neg => exact LE.le.subset fun ⦃a⦄ a_1 ↦ a_1
+    simp
+    rw [hAr, @Language.kstar_def, @Language.ext_iff]
+    intro x
+    constructor
+    case mp =>
+        intro h_x
+        obtain ⟨ L, h_L, h_y  ⟩ := h_x
+        rw[accepts_eq_0mod2_accepts Ar A' rfl] at h_y
+        subst h_L
+
+        induction L
+        case nil =>
+            simp_all only [List.not_mem_nil, IsEmpty.forall_iff, implies_true, List.flatten_nil]
+            rw[mem_accepts_iff_exists_path]
+            use 1, 1, []
+            simp[A, εNFA_kstar]
+        case cons head tail h_induction =>
+            simp at h_y
+            obtain ⟨ h_head, h_tail ⟩ := h_y
+            have h_head : head ∈ A.accepts := by
+                have h_head_acc := h_head
+                rw[mem_accepts_iff_exists_path] at h_head
+                obtain ⟨ qs₁, qf₁, head', h_qs₁, h_qf₁, h_head', h_path ⟩ := h_head
+                have h_qs₁: qs₁ ∈ A.start := by
+                    simp[A, εNFA_kstar]
+                    exact Or.symm (Or.intro_left (qs₁ = 1) h_qs₁)
+                have h_qf₁: qf₁ ∈ A.accept := by
+                    simp[A, εNFA_kstar]
+                    exact Or.symm (Or.intro_left (qf₁ = 1) h_qf₁)
+                rw[mem_accepts_iff_exists_path]
+                use qs₁, qf₁, head'
+                exact ⟨ h_qs₁, h_qf₁, h_head',  path_if_contains A A' h_contains qs₁ qf₁ head' h_path ⟩
+            apply h_induction at h_tail
+            exact kstar_append A A' (head :: tail).flatten head tail.flatten rfl rfl h_head h_tail
+
+    case mpr =>
+        intro h_x
+
 
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
     induction r
-
     case zero => exact Zero_Regex_to_εNFA
     case epsilon => exact Epsilon_Regex_to_εNFA
     case char σ => exact Char_Regex_to_εNFA σ
-    case plus r₁ r₂ h_r₁ h_r₂ => exact Plus_Regex_to_εNFA r₁ r₂ h_r₁ h_r₂
-    case comp r₁ r₂ h_r₁ h_r₂ => exact Comp_Regex_to_εNFA r₁ r₂ h_r₁ h_r₂
-    case star =>
-        sorry
+    case plus _ _ r₁ r₂ h_r₁ h_r₂ => exact Plus_Regex_to_εNFA r₁ r₂ h_r₁ h_r₂
+    case comp _ _ r₁ r₂ h_r₁ h_r₂ => exact Comp_Regex_to_εNFA r₁ r₂ h_r₁ h_r₂
+    case star _ _ r h_r => exact Star_Regex_to_εNFA r h_r
 
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : ∃ (r: RegularExpression alphabet), r.matches' = A.accepts := by
     sorry
-
-
-def g (xs ys : List Nat) : Nat :=
-    match xs, ys with
-    | [a, b], _ => a+b+1
-    | _, [b, c] => b+1
-    | _, _ => 1
-
-example (xs ys : List Nat) (h : g xs ys = 0) : False := by
-    simp [g] at h;
-    split at h
-    simp +arith at h

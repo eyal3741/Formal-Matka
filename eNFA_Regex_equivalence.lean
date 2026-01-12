@@ -324,12 +324,16 @@ lemma accepts_eq_1mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ
     (A' = to_1mod2_εNFA A) → A.accepts = A'.accepts := by
     sorry
 
+
+ -- -- -- -- -- -- -- -- -- -- --
+-- -- -- -- -- ZERO -- -- -- -- --
+ -- -- -- -- -- -- -- -- -- -- --
+
 def εNFA_zero : εNFA alphabet ℕ := {
     start  := ∅
     accept := ∅
     step   := fun _ _ => ∅
 }
-
 
 lemma Zero_Regex_to_εNFA :
     ∃ (A: εNFA alphabet ℕ), RegularExpression.zero.matches' = A.accepts := by
@@ -337,6 +341,10 @@ lemma Zero_Regex_to_εNFA :
         use A
         simp only [RegularExpression.zero_def, RegularExpression.matches'_zero, Language.zero_def, εNFA.accepts]
         simp only [mem_empty_iff_false, false_and, exists_false, setOf_false, A, εNFA_zero]
+
+ -- -- -- -- -- -- -- -- -- -- -- --
+-- -- -- -- -- EPSILON -- -- -- -- --
+ -- -- -- -- -- -- -- -- -- -- -- --
 
 def εNFA_epsilon : εNFA alphabet ℕ := {
     start  := {0}
@@ -364,6 +372,10 @@ lemma Epsilon_Regex_to_εNFA :
             case nil => exact id (Eq.symm h_x')
             case cons _ _ _ h_step _ =>
                 exact False.elim h_step
+
+ -- -- -- -- -- -- -- -- -- -- --
+-- -- -- -- -- CHAR -- -- -- -- --
+ -- -- -- -- -- -- -- -- -- -- --
 
 def εNFA_char (σ : alphabet) : εNFA alphabet ℕ := {
     start  := {0}
@@ -432,6 +444,10 @@ lemma Char_Regex_to_εNFA (σ : alphabet) :
                                 subst A
                                 simp only [εNFA_char, one_ne_zero, false_and, ↓reduceIte, mem_empty_iff_false,
                                   not_false_eq_true]
+
+ -- -- -- -- -- -- -- -- -- -- --
+-- -- -- -- -- PLUS -- -- -- -- --
+ -- -- -- -- -- -- -- -- -- -- --
 
 def εNFA_plus (A₁: εNFA alphabet ℕ) (A₂: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
     start  := A₁.start  ∪ A₂.start
@@ -623,7 +639,10 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
               exact this qs qf x' h_qs_is_1mod2 h_A_path
 
 
+ -- -- -- -- -- -- -- -- -- -- --
 -- -- -- -- -- COMP -- -- -- -- --
+ -- -- -- -- -- -- -- -- -- -- --
+
 def εNFA_comp (A₁: εNFA alphabet ℕ) (A₂: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
     start  := A₁.start
     accept := A₂.accept

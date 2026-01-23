@@ -972,35 +972,6 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         obtain ⟨ qs₁, qf₂, x', h_qs₁, h_qf₂, h_x', h_ispath ⟩ := h_in_A
         exact ⟨ a, h_a_accept, b, h_b_accept, Eq.symm h_ab ⟩
 
-lemma kstar_path_decomposition (A A' : εNFA alphabet ℕ)
-  (hA : A = εNFA_kstar A') :
-  ∀ (qs qf : ℕ), ∀ (y : List alphabet), ∀ (y' : List (Option alphabet)),
-    qs ∈ A.start ∧ qf ∈ A.accept ∧ y = y'.reduceOption ∧ A.IsPath qs qf y' →
-    ∃ (L : List (List (Option alphabet))),
-      y = (L.map List.reduceOption).flatten ∧
-      ∀ seg ∈ L, seg.reduceOption ∈ A'.accepts := by
-         sorry
-
-lemma kstar_word_decomposition
-  (A A' : εNFA alphabet ℕ)
-  (hA : A = εNFA_kstar A')
-  (x : List alphabet) :
-  x ∈ A.accepts →
-  ∃ L : List (List alphabet),
-    x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts := by
-  sorry
-
-  lemma kstar_accepts_decomposed
-    (A A' : εNFA alphabet ℕ) (hA : A = εNFA_kstar A') (x : List alphabet) :
-    x ∈ A.accepts →
-    x = [] ∨ ∃ a b : List alphabet, x = a ++ b ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
-     intro hx
-     subst hA
-     by_cases hx0 : x = []
-     · left; exact hx0
-     · right
-    sorry
-
 
 
 def εNFA_kstar (A: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
@@ -1015,12 +986,12 @@ def εNFA_kstar (A: εNFA alphabet ℕ) : εNFA alphabet ℕ := {
             A.step q c
 }
 
+
 lemma kstar_append (A A' : εNFA alphabet ℕ) (y y₁ y₂ : List alphabet)
 (hA: A = εNFA_kstar A') (hy: y = y₁ ++ y₂) :
     (y₁ ∈ A.accepts) ∧ (y₂ ∈ A.accepts) → y ∈ A.accepts := by
     intro ⟨ h_y₁_acc, h_y₂_acc ⟩
-    rw[mem_accepts_iff_exists_path]
-    rw[mem_accepts_iff_exists_path] at h_y₁_acc h_y₂_acc
+    rw[mem_accepts_iff_exists_path] at h_y₁_acc h_y₂_acc ⊢
     obtain ⟨ qs₁, qf₁, y₁', h_qs₁, h_qf₁, h_y₁', h_y₁_path ⟩ := h_y₁_acc
     obtain ⟨ qs₂, qf₂, y₂', h_qs₂, h_qf₂, h_y₂', h_y₂_path ⟩ := h_y₂_acc
     let y' := y₁' ++ ([none] ++ y₂')
@@ -1051,8 +1022,39 @@ lemma kstar_append (A A' : εNFA alphabet ℕ) (y y₁ y₂ : List alphabet)
 
     exact ⟨ h_qs₁, h_qf₂, h_y', h_full_path ⟩
 
+lemma kstar_accepts_decomposed
+    (A A' : εNFA alphabet ℕ) (hA : A = εNFA_kstar A') (x : List alphabet) :
+    x ∈ A.accepts →
+    x = [] ∨ ∃ a b : List alphabet, x = a ++ b ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
+    sorry
 
+ lemma kstar_path_decomposition
+    (A A' : εNFA alphabet ℕ)
+    (hA : A = εNFA_kstar A') :
+    ∀ (qs qf : ℕ), ∀ (y : List alphabet), ∀ (y' : List (Option alphabet)),
+        qs ∈ A.start ∧ qf ∈ A.accept ∧ y = y'.reduceOption ∧ A.IsPath qs qf y' →
+        ∃ (L : List (List (Option alphabet))),
+        y = (L.map List.reduceOption).flatten ∧
+        ∀ seg ∈ L, seg.reduceOption ∈ A'.accepts := by
+    rintro qs qf y y' ⟨hqs, hqf, hy, hpath⟩
+    subst hA
+    have hqs' : qs = 1 := by
+        simpa [εNFA_kstar] using hqs
+    have hqf' : qf = 1 := by
+        simpa [εNFA_kstar] using hqf
+    subst hy
 
+    sorry
+-- TODO:
+lemma kstar_word_decomposition
+    (A A' : εNFA alphabet ℕ)
+    (hA : A = εNFA_kstar A')
+    (x : List alphabet) :
+    x ∈ A.accepts →
+    ∃ L : List (List alphabet),
+        x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts := by
+    sorry
+-- TODO:
 lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
     (∃ (Ar: εNFA alphabet ℕ), r.matches' = Ar.accepts) →
     ∃ (A: εNFA alphabet ℕ), (r.star).matches' = A.accepts := by
@@ -1068,7 +1070,6 @@ lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
         unfold εNFA.contains
         intro q σ
         simp[A, εNFA_kstar]
-        --rw [@insert_eq, @union_left_comm]
         split_ifs
         case pos => exact subset_insert 1 (A'.step q σ)
         case pos h_1 =>
@@ -1099,23 +1100,46 @@ lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
         case cons head tail h_induction =>
             simp at h_y
             obtain ⟨ h_head, h_tail ⟩ := h_y
-            have h_head : head ∈ A.accepts := by
-                rw[mem_accepts_iff_exists_path] at h_head
-                obtain ⟨ qs₁, qf₁, head', h_qs1, h_qf₁, h_head', h_path ⟩ := h_head
-                have h_qs₁: qs₁ ∈ A.start := by
-                    simp[A, εNFA_kstar]
-                    exact Or.symm (Or.intro_left (qs₁ = 1) h_qs₁')
-                have h_qf₁: qf₁ ∈ A.accept := by
-                    simp[A, εNFA_kstar]
-                    exact Or.symm (Or.intro_left (qf₁ = 1) h_qf₁)
-                rw[mem_accepts_iff_exists_path]
-                use qs₁, qf₁, head'
-                exact ⟨ h_qs₁, h_qf₁, h_head',  path_if_contains A A' h_contains qs₁ qf₁ head' h_path ⟩
+            have h_head_acc : head ∈ A.accepts := by
+                rw [A.mem_accepts_iff_exists_path]
+                rw [A'.mem_accepts_iff_exists_path] at h_head
+                obtain ⟨qs1, qf1, headOpt, h_qs1, h_qf1, h_headOpt, h_path⟩ := h_head
+                refine ⟨1, 1, ([none] ++ headOpt ++ [none]), ?_, ?_, ?_, ?_⟩
+                · simp [A, εNFA_kstar]
+                · simp [A, εNFA_kstar]
+                · simpa [List.reduceOption_append, h_headOpt]
+                ·
+                   have h1_not_acc : (1 : ℕ) ∉ A'.accept := by
+                    simp [A', to_0mod2_εNFA]
+                   have h_step1 : qs1 ∈ A.step 1 none := by
+                     simp [A, εNFA_kstar, h1_not_acc, h_qs1]
+                   have h_eps1 : A.IsPath 1 qs1 [none] :=
+                        A.isPath_singleton.mpr h_step1
+                   have h_mid : A.IsPath qs1 qf1 headOpt :=
+                        path_if_contains A A' h_contains qs1 qf1 headOpt h_path
+                   have h_step2 : (1 : ℕ) ∈ A.step qf1 none := by
+                        simp [A, εNFA_kstar, h_qf1]
+                   have h_eps2 : A.IsPath qf1 1 [none] :=
+                        A.isPath_singleton.mpr h_step2
+                   have h_mid' : A.IsPath qs1 1 (headOpt ++ [none]) :=
+                        A.isPath_append.mpr ⟨qf1, h_mid, h_eps2⟩
+                   have h_1_to_qf1 : A.IsPath 1 qf1 ([none] ++ headOpt) :=
+                         A.isPath_append.mpr ⟨qs1, h_eps1, h_mid⟩
+                   have h_full : A.IsPath 1 1 (([none] ++ headOpt) ++ [none]) :=
+                         A.isPath_append.mpr ⟨qf1, h_1_to_qf1, h_eps2⟩
+
+                   simpa [List.append_assoc] using h_full
             apply h_induction at h_tail
-            exact kstar_append A A' (head :: tail).flatten head tail.flatten rfl rfl ⟨ h_head, h_tail⟩
+            exact kstar_append A A' (head :: tail).flatten head tail.flatten rfl rfl ⟨ h_head_acc, h_tail⟩
 
     case mpr =>
-         sorry
+        intro h_in_A
+        have hx :
+            ∃ L : List (List alphabet),
+                x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts :=
+            kstar_word_decomposition (A := A) (A' := A') (hA := rfl) (x := x) h_in_A
+        rcases hx with ⟨L, h_flat, h_all⟩
+        exact ⟨L, h_flat, h_all⟩
 
 
 

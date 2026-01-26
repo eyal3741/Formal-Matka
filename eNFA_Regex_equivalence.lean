@@ -1022,39 +1022,113 @@ lemma kstar_append (A A' : εNFA alphabet ℕ) (y y₁ y₂ : List alphabet)
 
     exact ⟨ h_qs₁, h_qf₂, h_y', h_full_path ⟩
 
-lemma kstar_accepts_decomposed
-    (A A' : εNFA alphabet ℕ) (hA : A = εNFA_kstar A') (x : List alphabet) :
-    x ∈ A.accepts →
-    x = [] ∨ ∃ a b : List alphabet, x = a ++ b ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
-    sorry
 
- lemma kstar_path_decomposition
-    (A A' : εNFA alphabet ℕ)
-    (hA : A = εNFA_kstar A') :
-    ∀ (qs qf : ℕ), ∀ (y : List alphabet), ∀ (y' : List (Option alphabet)),
-        qs ∈ A.start ∧ qf ∈ A.accept ∧ y = y'.reduceOption ∧ A.IsPath qs qf y' →
-        ∃ (L : List (List (Option alphabet))),
-        y = (L.map List.reduceOption).flatten ∧
-        ∀ seg ∈ L, seg.reduceOption ∈ A'.accepts := by
-    rintro qs qf y y' ⟨hqs, hqf, hy, hpath⟩
-    subst hA
-    have hqs' : qs = 1 := by
-        simpa [εNFA_kstar] using hqs
-    have hqf' : qf = 1 := by
-        simpa [εNFA_kstar] using hqf
-    subst hy
+lemma extract_first_chunk
+        {α : Type u} [DecidableEq α]
+        (A' : εNFA α ℕ)
+        (h_eps : ([] : List α) ∉ A'.accepts)
+        (t : ℕ) (tail : List (Option α))
+        (ht : t ∈ A'.step 1 none)
+        (h_rest : (εNFA_kstar A').IsPath t 1 tail) :
+        ∃ a b : List α,
+            tail.reduceOption = a ++ b ∧
+            a ≠ [] ∧
+            a ∈ A'.accepts ∧
+            b ∈ (εNFA_kstar A').accepts :=
+        by
+        sorry
 
-    sorry
--- TODO:
-lemma kstar_word_decomposition
+lemma kstar_accepts_decomposed_nonempty
     (A A' : εNFA alphabet ℕ)
     (hA : A = εNFA_kstar A')
+    (h_eps : ([] : List alphabet) ∉ A'.accepts)
     (x : List alphabet) :
     x ∈ A.accepts →
-    ∃ L : List (List alphabet),
-        x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts := by
-    sorry
--- TODO:
+    x = [] ∨ ∃ a b : List alphabet,
+    x = a ++ b ∧ a ≠ [] ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
+        intro hx
+        subst hA
+        rcases ((εNFA_kstar A').mem_accepts_iff_exists_path).1 hx with
+        ⟨qs, qf, y', h_qs, h_qf, h_x, h_path⟩
+        have hqs1 : qs = 1 := by
+            simpa [εNFA_kstar] using h_qs
+        have hqf1 : qf = 1 := by
+            simpa [εNFA_kstar] using h_qf
+        have hx_eq : x = y'.reduceOption := by
+            simpa using h_x.symm
+        induction h_path generalizing x with
+        | nil q =>
+            subst hqs1
+            left
+            simp [hx_eq]
+        | cons t q₁ q₂ c tail h_step h_rest ih =>
+        subst hqs1
+        subst hqf1
+        by_cases hx0 : x = []
+        ·
+            left
+            exact hx0
+        ·
+            right
+            have hx' : x = (c :: tail).reduceOption := by
+                symm
+                exact h_x
+            cases c with
+            | none =>
+            have hx_tail : x = tail.reduceOption := by
+                simpa using h_x.symm
+            have hstep' := h_step
+            simp [εNFA_kstar] at hstep'
+            by_cases hacc : 1 ∈ A'.accept
+            ·
+                have hmem : t ∈ insert 1 (A'.step 1 none) := by
+                    simpa [hacc] using hstep'
+                have ht : t = 1 ∨ t ∈ A'.step 1 none := by
+                    simpa [mem_insert] using hmem
+                cases ht with
+                | inl ht1 =>
+                    subst ht1
+                    have htail : tail.reduceOption ∈ (A'.εNFA_kstar).accepts := by
+                        simpa [hx_tail] using hx
+                    have hdec := ih (x := tail.reduceOption) htail
+                    have hdec' :
+                        tail.reduceOption = [] ∨
+                        ∃ a b, tail.reduceOption = a ++ b ∧ a ≠ [] ∧ a ∈ A'.accepts ∧ b ∈ A'.εNFA_kstar.accepts := by
+                        exact hdec h_qs h_qf rfl rfl rfl rfl
+                    cases hdec' with
+                    | inl hnil =>
+                    exfalso
+                    apply hx0
+                    simpa [hx_tail] using hnil
+                    | inr hex =>
+                        rcases hex with ⟨a, b, hab, ha_ne, ha_acc, hb_acc⟩
+                        refine ⟨a, b, ?_, ha_ne, ha_acc, ?_⟩
+                        · simpa [hx_tail] using hab
+                        · simpa [hx_tail] using hb_acc
+                | inr ht =>
+                    have hx_tail : x = tail.reduceOption := by
+                        simpa using h_x.symm
+                    rcases extract_first_chunk A' h_eps t tail ht h_rest with
+                        ⟨a, b, hab, ha_ne, ha_acc, hb_acc⟩
+                    refine ⟨a, b, ?_, ha_ne, ha_acc, ?_⟩
+                    · simpa [hx_tail] using hab
+                    · simpa using hb_acc
+            ·
+                 have hmem : t ∈ A'.start ∪ {1} := by
+                    simpa [εNFA_kstar, hacc] using hstep'
+                 have ht : t = 1 ∨ t ∈ A'.start := by
+                    sorry
+                 cases ht with
+                | inl ht1 =>
+                    subst ht1
+                    sorry
+                | inr htStart =>
+                    sorry
+            | some a =>
+            sorry
+
+
+
 lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
     (∃ (Ar: εNFA alphabet ℕ), r.matches' = Ar.accepts) →
     ∃ (A: εNFA alphabet ℕ), (r.star).matches' = A.accepts := by

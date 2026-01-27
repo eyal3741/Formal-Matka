@@ -69,7 +69,7 @@ lemma path_if_contains (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) :
         · exact mem_preimage.mp (h_contains q₁ c h_step)
         · exact h_induction
 
-lemma if_0mod2_step_is_0mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) (q₁ : ℕ) (q₂ : ℕ) (σ : Option alphabet) :
+lemma if_0mod2_step_is_0mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) (q₁ q₂ : ℕ) (σ : Option alphabet) :
     (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = q₂ % 2) := by
     intro hmem
     obtain ⟨ A, hA ⟩ := hA'
@@ -87,7 +87,7 @@ lemma if_0mod2_step_is_0mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) 
             simp [to_0mod2_εNFA, h] at hmem
         simp at this
 
-lemma if_1mod2_step_is_1mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_1mod2_εNFA) (q₁ : ℕ) (q₂ : ℕ) (σ : Option alphabet) :
+lemma if_1mod2_step_is_1mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_1mod2_εNFA) (q₁ q₂ : ℕ) (σ : Option alphabet) :
     (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = q₂ % 2) := by
     intro hmem
     obtain ⟨ A, hA ⟩ := hA'
@@ -117,7 +117,7 @@ lemma if_1mod2_step_is_1mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_1mod2_εNFA) 
             simp
         simp [hodd, h2]
 
-lemma if_0mod2_path_is_0mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) (q₁ : ℕ) (q₂ : ℕ) (x : List (Option alphabet)) :
+lemma if_0mod2_path_is_0mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) (q₁ q₂ : ℕ) (x : List (Option alphabet)) :
     (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
     intro hpath
     have ⟨ A, hA ⟩ := hA'
@@ -131,7 +131,7 @@ lemma if_0mod2_path_is_0mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) 
         exact Eq.trans hst ih
 
 
-lemma if_1mod2_path_is_1mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_1mod2_εNFA) (q₁ : ℕ) (q₂ : ℕ) (x : List (Option alphabet)) :
+lemma if_1mod2_path_is_1mod2 (A' : εNFA alphabet ℕ) (hA': A'.is_1mod2_εNFA) (q₁ q₂ : ℕ) (x : List (Option alphabet)) :
     (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
     intro hpath
     have ⟨ A, hA ⟩ := hA'
@@ -1022,11 +1022,9 @@ lemma kstar_append (A A' : εNFA alphabet ℕ) (y y₁ y₂ : List alphabet)
 
     exact ⟨ h_qs₁, h_qf₂, h_y', h_full_path ⟩
 
-
 lemma extract_first_chunk
         {α : Type u} [DecidableEq α]
         (A' : εNFA α ℕ)
-        (h_eps : ([] : List α) ∉ A'.accepts)
         (t : ℕ) (tail : List (Option α))
         (ht : t ∈ A'.step 1 none)
         (h_rest : (εNFA_kstar A').IsPath t 1 tail) :
@@ -1038,96 +1036,104 @@ lemma extract_first_chunk
         by
         sorry
 
-lemma kstar_accepts_decomposed_nonempty
-    (A A' : εNFA alphabet ℕ)
-    (hA : A = εNFA_kstar A')
-    (h_eps : ([] : List alphabet) ∉ A'.accepts)
-    (x : List alphabet) :
-    x ∈ A.accepts →
-    x = [] ∨ ∃ a b : List alphabet,
-    x = a ++ b ∧ a ≠ [] ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
-        intro hx
-        subst hA
-        rcases ((εNFA_kstar A').mem_accepts_iff_exists_path).1 hx with
-        ⟨qs, qf, y', h_qs, h_qf, h_x, h_path⟩
-        have hqs1 : qs = 1 := by
-            simpa [εNFA_kstar] using h_qs
-        have hqf1 : qf = 1 := by
-            simpa [εNFA_kstar] using h_qf
-        have hx_eq : x = y'.reduceOption := by
-            simpa using h_x.symm
-        induction h_path generalizing x with
-        | nil q =>
-            subst hqs1
-            left
-            simp [hx_eq]
-        | cons t q₁ q₂ c tail h_step h_rest ih =>
-        subst hqs1
-        subst hqf1
-        by_cases hx0 : x = []
-        ·
-            left
-            exact hx0
-        ·
-            right
-            have hx' : x = (c :: tail).reduceOption := by
-                symm
-                exact h_x
-            cases c with
-            | none =>
-            have hx_tail : x = tail.reduceOption := by
-                simpa using h_x.symm
-            have hstep' := h_step
-            simp [εNFA_kstar] at hstep'
-            by_cases hacc : 1 ∈ A'.accept
-            ·
-                have hmem : t ∈ insert 1 (A'.step 1 none) := by
-                    simpa [hacc] using hstep'
-                have ht : t = 1 ∨ t ∈ A'.step 1 none := by
-                    simpa [mem_insert] using hmem
-                cases ht with
-                | inl ht1 =>
-                    subst ht1
-                    have htail : tail.reduceOption ∈ (A'.εNFA_kstar).accepts := by
-                        simpa [hx_tail] using hx
-                    have hdec := ih (x := tail.reduceOption) htail
-                    have hdec' :
-                        tail.reduceOption = [] ∨
-                        ∃ a b, tail.reduceOption = a ++ b ∧ a ≠ [] ∧ a ∈ A'.accepts ∧ b ∈ A'.εNFA_kstar.accepts := by
-                        exact hdec h_qs h_qf rfl rfl rfl rfl
-                    cases hdec' with
-                    | inl hnil =>
-                    exfalso
-                    apply hx0
-                    simpa [hx_tail] using hnil
-                    | inr hex =>
-                        rcases hex with ⟨a, b, hab, ha_ne, ha_acc, hb_acc⟩
-                        refine ⟨a, b, ?_, ha_ne, ha_acc, ?_⟩
-                        · simpa [hx_tail] using hab
-                        · simpa [hx_tail] using hb_acc
-                | inr ht =>
-                    have hx_tail : x = tail.reduceOption := by
-                        simpa using h_x.symm
-                    rcases extract_first_chunk A' h_eps t tail ht h_rest with
-                        ⟨a, b, hab, ha_ne, ha_acc, hb_acc⟩
-                    refine ⟨a, b, ?_, ha_ne, ha_acc, ?_⟩
-                    · simpa [hx_tail] using hab
-                    · simpa using hb_acc
-            ·
-                 have hmem : t ∈ A'.start ∪ {1} := by
-                    simpa [εNFA_kstar, hacc] using hstep'
-                 have ht : t = 1 ∨ t ∈ A'.start := by
-                    sorry
-                 cases ht with
-                | inl ht1 =>
-                    subst ht1
-                    sorry
-                | inr htStart =>
-                    sorry
-            | some a =>
+lemma kstar_decompose_path
+    (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) (hA : A = εNFA_kstar A')
+    (qs qf : ℕ) (x : List (Option alphabet)) :
+    A.IsPath qs qf x → x = [] ∨ ∃ (qs' qf' : ℕ), ∃ a b : List alphabet,
+    (x = a ++ b ∧ A.IsPath qs qs' [] ∧ A'.IsPath qs' qf' a ∧ A.IsPath qf' qf b) := by
+    intro h_x_path_in_A
+    by_cases h_qs_eq_qf: x = []
+    case pos => left; exact h_qs_eq_qf
+    case neg =>
+        right
+        cases h_x_path_in_A
+        case nil => sorry
+        case cons t qs qf c tail h_step h_rest =>
             sorry
 
+lemma kstar_accepts_decomposed_nonempty
+    (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2_εNFA) (hA : A = εNFA_kstar A') (x : List alphabet) :
+    x ∈ A.accepts → x = [] ∨ ∃ a b : List alphabet, x = a ++ b ∧ a ≠ [] ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
+    intro h_x_in_A
 
+    by_cases h_x_nil : x = []
+    case pos => left; exact h_x_nil
+    case neg =>
+        right
+        obtain ⟨ qs, qf, y', h_qs, h_qf, h_x, h_path ⟩ := A.mem_accepts_iff_exists_path.mp h_x_in_A
+        clear h_qs h_qf
+        induction h_path generalizing x with
+        | nil q =>
+            subst h_x
+            absurd h_x_nil
+            exact List.reduceOption_nil
+        | cons t qs qf c tail h_step h_rest ih =>
+            by_cases h_tail_empty: tail = []
+            case pos =>
+                cases c with
+                | none =>
+                    simp[h_tail_empty] at h_x
+                    contradiction
+                | some σ =>
+                    absurd h_step
+                    simp [hA, εNFA_kstar]
+
+                    have h_qs_1: qs = 1 := by
+                        simp [hA, εNFA_kstar] at h_qs
+                        exact h_qs
+
+
+                    use [σ], []
+
+                    have h_x_σ_nil : x = [σ] ++ [] := by
+                        subst h_tail_empty h_x
+                        exact Eq.symm (List.append_nil [σ])
+
+                    have h_x_σ : x = [σ] := by
+                        exact Multiset.coe_eq_singleton.mp (congrArg Multiset.ofList h_x_σ_nil)
+
+                    refine ⟨ h_x_σ_nil, List.cons_ne_nil σ [], ?_ ⟩
+
+                    have h_1_notin_A': 1 ∉ A'.start ∧ 1 ∉ A'.accept:= by
+                        constructor
+                        case left =>
+                            by_contra!
+                            apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
+                            contradiction
+                        case right =>
+                            by_contra!
+                            apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
+                            contradiction
+
+                    constructor
+                    case left =>
+                        subst h_x_σ
+                        --obtain ⟨ qs, qf, y', h_qs, h_qf, h_x, h_path ⟩ := A.mem_accepts_iff_exists_path.mp h_x_in_A
+                        -- have h_qs_qf_1 : qs = 1 ∧ qf = 1 := by
+                        --     simp [hA, εNFA_kstar] at h_qs h_qf
+                        --     exact ⟨ h_qs, h_qf ⟩
+                        -- have : qs ∉ A'.start ∧ qf ∉ A'.accept := by
+                        --     simp [h_qs_qf_1, h_1_notin_A']
+
+
+                        have : ∃ q₂ ∈ A'.accept, ∃ (x' : List (Option alphabet)),  x'.reduceOption = [σ] ∧ A'.IsPath t q₂ x' := by
+                            sorry
+                        obtain ⟨ q₂, hq₂, x', hx' ⟩ := this
+
+                        apply A'.mem_accepts_iff_exists_path.mpr
+                        use t, q₂, x'
+                        refine ⟨ ?_, hq₂, hx'.left, hx'.right ⟩
+                        have : some σ ≠ none := by exact Option.some_ne_none σ
+                        rw [hA, εNFA_kstar] at h_step
+                        simp[this] at h_step
+
+
+
+                    case right =>
+                        rw[mem_accepts_iff_exists_path]
+                        use 1, 1, [none]
+
+                        simp [hA, εNFA_kstar, h_1_notin_A']
 
 lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
     (∃ (Ar: εNFA alphabet ℕ), r.matches' = Ar.accepts) →

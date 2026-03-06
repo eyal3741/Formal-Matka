@@ -244,10 +244,10 @@ lemma accepts_iff_mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ
         use qs, qf, x'
         exact ⟨ h_qs, h_qf, h_x', h_iff_path.mpr h_path_in_A' ⟩
 
-lemma accepts_eq_0mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_0mod2 A) :
+lemma accepts_iff_0mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_0mod2 A) :
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inl hA')
 
-lemma accepts_eq_1mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_1mod2 A) :
+lemma accepts_iff_1mod2_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_1mod2 A) :
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inr hA')
 
 end εNFA
@@ -450,7 +450,7 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         intro h
         cases h
         case inl h_in_A₁ =>
-            rw [accepts_eq_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_in_A₁
+            rw [accepts_iff_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_in_A₁
             rw [A.mem_accepts_iff_exists_path]
             obtain ⟨ s₁, s₂, x', h_s₁, h_s₂, h_x', h_A₁'_path ⟩ := h_in_A₁
             use s₁, s₂, x'
@@ -460,7 +460,7 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
                     path_if_contains A A₁' h_A_contains_A₁' s₁ s₂ x' h_A₁'_path ⟩
 
         case inr h_in_A₂ =>
-            rw [accepts_eq_1mod2_accepts A₂ A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_in_A₂
+            rw [accepts_iff_1mod2_accepts A₂ A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_in_A₂
             rw [A.mem_accepts_iff_exists_path]
             obtain ⟨ s₁, s₂, x', h_s₁, h_s₂, h_x', h_A₂'_path ⟩ := h_in_A₂
             use s₁, s₂, x'
@@ -477,7 +477,7 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         by_cases (qs % 2) = 0
         case pos h_qs_is_0mod2 =>
             left
-            rw [accepts_eq_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path]
+            rw [accepts_iff_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path]
             use qs, qf, x'
 
             have h_qs_start : qs ∈ A₁'.start := by
@@ -527,7 +527,7 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         case neg h_qs_1mod2 =>
             simp at h_qs_1mod2
             right
-            rw [accepts_eq_1mod2_accepts A₂ A₂' rfl]
+            rw [accepts_iff_1mod2_accepts A₂ A₂' rfl]
             rw [A₂'.mem_accepts_iff_exists_path]
             use qs, qf, x'
 
@@ -873,8 +873,8 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
         intro h_in_image
         rw [image2] at h_in_image
         obtain ⟨ x₁, h_x₁, x₂, h_x₂, h_comp ⟩ := h_in_image
-        rw [accepts_eq_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_x₁
-        rw [accepts_eq_1mod2_accepts A₂ A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_x₂
+        rw [accepts_iff_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_x₁
+        rw [accepts_iff_1mod2_accepts A₂ A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_x₂
         obtain ⟨ qs₁, qf₁, x₁', h_qs₁, h_qf₁, h_x₁', h_ispath1 ⟩ := h_x₁
         obtain ⟨ qs₂, qf₂, x₂', h_qs₂, h_qf₂, h_x₂', h_ispath2 ⟩ := h_x₂
         rw [A.mem_accepts_iff_exists_path]
@@ -914,7 +914,7 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression alphabet) :
 
     case mpr =>
         intro h_in_A
-        rw [image2, accepts_eq_0mod2_accepts A₁ A₁' rfl, accepts_eq_1mod2_accepts A₂ A₂' rfl]
+        rw [image2, accepts_iff_0mod2_accepts A₁ A₁' rfl, accepts_iff_1mod2_accepts A₂ A₂' rfl]
         obtain ⟨ a, b, h_ab, h_a_accept, h_b_accept ⟩ := comp_word_decomposition A A₁' A₂' hA₁' hA₂' rfl x h_in_A
         exact ⟨ a, h_a_accept, b, h_b_accept, Eq.symm h_ab ⟩
 
@@ -967,6 +967,11 @@ lemma kstar_append (A A' : εNFA alphabet ℕ) (y y₁ y₂ : List alphabet)
 
     exact ⟨ h_qs₁, h_qf₂, h_y', h_full_path ⟩
 
+-- def kstar_first_word (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
+--     (x : List (Option alphabet)) (h_xA : A.IsPath 1 1 x') :
+--     (x₁ : List alphabet) (h_x₁ : x₁.isPrefixOf x) () =
+
+
 lemma extract_first_chunk
         {α : Type u} [DecidableEq α]
         (A' : εNFA α ℕ)
@@ -977,9 +982,31 @@ lemma extract_first_chunk
             tail.reduceOption = a ++ b ∧
             a ≠ [] ∧
             a ∈ A'.accepts ∧
-            b ∈ (εNFA_kstar A').accepts :=
-        by
+            b ∈ (εNFA_kstar A').accepts := by
         sorry
+
+@[simp]
+lemma reduced_reduced (a b : List (Option alphabet)) :
+    (a ++ b).reduceOption = (a.reduceOption ++ b.reduceOption) := by
+    induction a with
+    | nil => simp only [List.nil_append, List.reduceOption_nil]
+    | cons c tail h_induction => sorry
+
+
+-- lemma kstar_decompose_path_step_from_1 (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
+--     (qs qf : ℕ) (x : List alphabet) (x' : List (Option alphabet)) (t : ℕ) (c : Option alphabet) (tail : List (Option alphabet))
+--     (h_x': (c :: tail).reduceOption = x) (h_x_not_empty: x ≠ []) (h_qs_1 : qs = 1)
+--     (h_step : t ∈ A.step qs c) (h_path : A.IsPath t qf tail)
+--     (h_induction : ∀ (x : List alphabet),
+--         tail.reduceOption = x →
+--             x ≠ [] →
+--             ∃ qs' qf' a b a' b',
+--                 a'.reduceOption = a ∧
+--                 b'.reduceOption = b ∧ x = a ++ b ∧ (qs' ∈ A'.εClosure {t} ∨ t = 1) ∧ A'.IsPath qs' qf' a' ∧ A.IsPath qf' qf b'):
+--     ∃ (qs' qf' : ℕ) (a b : List alphabet) (a' b' : List (Option alphabet)),
+--     (a'.reduceOption = a) ∧ (b'.reduceOption = b) ∧
+--     (x = a ++ b) ∧ (qs' ∈ A'.εClosure {qs} ∨ qs = 1) ∧ (A'.IsPath qs' qf' a') ∧ (A.IsPath qf' qf b') := by
+
 
 lemma kstar_decompose_path
     (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
@@ -987,102 +1014,182 @@ lemma kstar_decompose_path
     (h_x': x'.reduceOption = x) (h_x_not_empty: x ≠ []) (h_A_path_qs_qf_x': A.IsPath qs qf x') :
     ∃ (qs' qf' : ℕ) (a b : List alphabet) (a' b' : List (Option alphabet)),
     (a'.reduceOption = a) ∧ (b'.reduceOption = b) ∧
-    (x = a ++ b) ∧ (qs' ∈ A.εClosure {qs}) ∧ (A'.IsPath qs' qf' a') ∧ (A.IsPath qf' qf b') := by
+    (x = a ++ b) ∧ (qs' ∈ A'.εClosure {qs} ∨ qs = 1) ∧ (A'.IsPath qs' qf' a') ∧ (A.IsPath qf' qf b') := by
 
-    by_cases h_qs_1: qs = 1
-    case pos =>
-        sorry
-    case neg =>
-        sorry
-    -- cases h_x_path_in_A
-    -- case nil =>
-    --     sorry
-    -- case cons t qs qf c tail h_step h_rest =>
-    --     sorry
+    -- A: qs ->(x') qf
+    -- A: qs ->(ε)* qs' ; A': qs' ->(a') qf' ; A: qf' ->(b') qf
 
-lemma kstar_accepts_decomposed_nonempty
-    (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A') (x : List alphabet) :
-    x ∈ A.accepts → x = [] ∨ ∃ a b : List alphabet, x = a ++ b ∧ a ≠ [] ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
-    intro h_x_in_A
+    induction h_A_path_qs_qf_x' generalizing x with
+    | nil _ =>
+        simp at h_x'
+        contradiction
+    | cons t qs qf c tail h_step h_path h_induction =>
+        have h_qs_εClosure : qs ∈ A'.εClosure {qs} :=
+            singleton_subset_iff.mp (A'.subset_εClosure {qs})
 
-    by_cases h_x_nil : x = []
-    case pos => left; exact h_x_nil
-    case neg =>
-        right
-        obtain ⟨ qs, qf, y', h_qs, h_qf, h_x, h_path ⟩ := A.mem_accepts_iff_exists_path.mp h_x_in_A
-        clear h_qs h_qf
-        induction h_path generalizing x with
-        | nil q =>
-            subst h_x
-            absurd h_x_nil
-            exact List.reduceOption_nil
-        | cons t qs qf c tail h_step h_rest ih =>
-            by_cases h_tail_empty: tail = []
-            case pos =>
-                cases c with
-                | none =>
-                    simp [h_tail_empty] at h_x
-                    simp [h_x] at h_x_nil
-                | some σ =>
-                    absurd h_step
-                    simp [hA, εNFA_kstar]
+        by_cases h_qs_1: qs = 1
+        case pos =>
+            subst h_qs_1
 
-                    have h_qs_1: qs = 1 := by
-                        simp [hA, εNFA_kstar] at h_qs
-                        exact h_qs
+            have h_1_notin_A': 1 ∉ A'.start ∧ 1 ∉ A'.accept ∧ ∀ (c : Option alphabet), A'.step 1 c = ∅ := by
+                have h_1_notin_start : 1 ∉ A'.start := by
+                    by_contra!
+                    apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
+                    contradiction
+                have h_1_notin_accept : 1 ∉ A'.accept := by
+                    by_contra!
+                    apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
+                    contradiction
+                have h_1_notin_step : ∀ (c : Option alphabet), A'.step 1 c = ∅ := by
+                    intro c
+                    by_contra!
+                    obtain ⟨ t, ht ⟩ := this
+                    apply if_0mod2_step_is_0mod2 A' hA' 1 at ht
+                    omega
+                exact ⟨h_1_notin_start, h_1_notin_accept, h_1_notin_step⟩
+
+            simp [hA, εNFA_kstar, h_1_notin_A'] at h_step
+            simp [h_step.left] at h_x'
+
+            have h_tail_not_empty : tail.reduceOption ≠ [] := by
+                subst hA h_x'
+                simp_all only [ne_eq, ↓existsAndEq, true_and, forall_eq', not_false_eq_true]
+
+            obtain ⟨ qs', qf', a, b, a', b', h_induction_path ⟩ := h_induction tail.reduceOption rfl h_tail_not_empty
+            obtain ⟨ h_a', h_b', h_tail_a₁_b, h_qs'_εClosure_t, h_path_A'_qs'_qf'_a', h_path_A_qf'_qf_b'⟩ := h_induction_path
+
+            use qs', qf', a, b, a', b'
+            simp [h_x'] at h_tail_a₁_b
+            simp
+            exact ⟨h_a', h_b', h_tail_a₁_b, h_path_A'_qs'_qf'_a', h_path_A_qf'_qf_b' ⟩
+
+        case neg =>
+            simp only [h_qs_1]
+            cases h_c: c
+            case none =>
+                subst c
+                have h_tail_not_empty : tail.reduceOption ≠ [] := by
+                    simp at h_x'
+                    simp [h_x', h_x_not_empty]
+
+                by_cases h_t_1: t = 1
+                case pos =>
+                    let a' : List (Option alphabet) := []
+                    let b' := [none] ++ tail
+                    let a := a'.reduceOption
+                    let b := b'.reduceOption
+
+                    use qs, qs, a, b, a', b'
+                    simp [h_qs_εClosure]
+
+                    have h_x_a_b : x = a ++ b := by
+                        subst hA h_x' h_t_1
+                        simp_all only [ne_eq, List.reduceOption_cons_of_none, not_false_eq_true, ↓existsAndEq,
+                          or_true, true_and, forall_eq', forall_const, List.reduceOption_nil, List.cons_append,
+                          List.nil_append, a, a', b, b']
+
+                    have h_path_qs_qf_tail : A.IsPath qs qf ([none] ++ tail) :=
+                        have h_path_qs_t_c : A.IsPath qs t [none] := A.isPath_singleton.mpr h_step
+                        A.isPath_append.mpr ⟨ t, ⟨ h_path_qs_t_c, h_path ⟩ ⟩
+
+                    exact ⟨ rfl, rfl, h_x_a_b, A'.isPath_nil.mpr rfl, h_path_qs_qf_tail ⟩
+
+                case neg =>
+                    obtain ⟨ qs', qf', a, b, a', b', h_induction_path ⟩ := h_induction tail.reduceOption rfl h_tail_not_empty
+                    obtain ⟨ h_a', h_b', h_tail_a₁_b, h_qs'_εClosure_t, h_path_A'_qs'_qf'_a₁', h_path_A_qf'_qf_b'⟩ := h_induction_path
+                    simp [h_t_1] at h_qs'_εClosure_t
+
+                    use qs', qf', a, b, a', b'
+                    simp
+
+                    have h_x_a_b : x = a ++ b := by
+                        subst hA h_x' h_a' h_b'
+                        simp_all only [ne_eq, List.append_eq_nil_iff, not_and, or_false, ↓existsAndEq, true_and,
+                          forall_eq', not_false_eq_true, implies_true, forall_const, List.reduceOption_cons_of_none]
+
+                    obtain ⟨ n, h_n ⟩ := A'.mem_εClosure_iff_exists_path.mp h_qs'_εClosure_t
+
+                    have h_path_qs_qs': A'.IsPath qs qs' ((List.replicate (n+1) none)) := by
+                        have h_step' : t ∈ A'.step qs none := by
+                            simp [hA, εNFA_kstar, h_qs_1] at h_step
+                            subst hA h_x' h_a' h_b'
+                            split_ifs at h_step
+                            case pos =>
+                                simp [h_t_1] at h_step
+                                exact h_step
+                            case neg => exact h_step
+                        have h_path_qs_t_c : A'.IsPath qs t [none] := A'.isPath_singleton.mpr h_step'
+                        exact A'.isPath_append.mpr ⟨ t, ⟨ h_path_qs_t_c, h_n ⟩ ⟩
+
+                    have h_qs'_εClosure_qs : qs' ∈ A'.εClosure {qs} := by
+                        apply A'.mem_εClosure_iff_exists_path.mpr
+                        use n + 1
+
+                    exact ⟨ h_a', h_b', h_x_a_b, h_qs'_εClosure_qs, h_path_A'_qs'_qf'_a₁', h_path_A_qf'_qf_b' ⟩
+
+            case some c =>
+                subst h_c
+                simp [hA, εNFA_kstar] at h_step
+
+                have h_t_not_1 : t ≠ 1 := by
+                    have : t % 2 = 0 := (if_0mod2_step_is_0mod2 A' hA' qs t c h_step).right
+                    omega
+
+                by_cases h_tail_empty: tail.reduceOption = []
+                case pos =>
+                    let a' := [some c]
+                    let b' := tail
+                    let a := a'.reduceOption
+                    let b := b'.reduceOption
+                    use qs, t, a, b, a', b'
+
+                    refine ⟨ rfl, rfl, ?_ ⟩
+                    simp [h_qs_εClosure]
+                    have h_a_b_c : a ++ b = [c] := by
+                        subst hA h_x'
+                        simp_all only [ne_eq, List.nil_eq, not_true_eq_false, ↓existsAndEq, List.append_eq_nil_iff,
+                          or_true, true_and, not_isEmpty_of_nonempty, IsEmpty.exists_iff, implies_true,
+                          List.reduceOption_cons_of_some, List.cons_ne_self, not_false_eq_true, List.reduceOption_nil,
+                          List.append_nil, a, a', b, b']
+
+                    simp [h_tail_empty] at h_x'
+                    subst h_x'
+                    refine ⟨ symm h_a_b_c, A'.isPath_singleton.mpr h_step, h_path ⟩
+
+                case neg =>
+                    simp at h_x'
+                    obtain ⟨ qs', qf', a₁, b, a₁', b', h_induction_path ⟩ := h_induction tail.reduceOption rfl h_tail_empty
+                    simp [h_t_not_1] at h_induction_path
+                    clear h_t_not_1 h_path h_x_not_empty h_induction
+
+                    obtain ⟨ h_a₁', h_b', h_tail_a₁_b, h_qs'_εClosure_t, h_path_A'_qs'_qf'_a₁', h_path_A_qf'_qf_b'⟩ := h_induction_path
+                    obtain ⟨ n, h_n ⟩ := A'.mem_εClosure_iff_exists_path.mp h_qs'_εClosure_t
+
+                    let a' := [some c] ++ (List.replicate n none) ++ a₁'
+                    let a := a'.reduceOption
+
+                    use qs, qf', a, b, a', b'
 
 
-                    use [σ], []
+                    -- A': qs ->(c) t ->(h_n) qs' ->(a₁') qf'
+                    have h_path_qs_t_c : A'.IsPath qs t [c] := A'.isPath_singleton.mpr h_step
 
-                    have h_x_σ_nil : x = [σ] ++ [] := by
-                        subst h_tail_empty h_x
-                        exact Eq.symm (List.append_nil [σ])
+                    have h_path_qs_qs' : A'.IsPath qs qs' ([some c] ++ (List.replicate n none)) := A'.isPath_append.mpr ⟨ t, ⟨ h_path_qs_t_c, h_n ⟩ ⟩
+                    have h_path_qs_qf' : A'.IsPath qs qf' a' := A'.isPath_append.mpr ⟨ qs', ⟨ h_path_qs_qs', h_path_A'_qs'_qf'_a₁' ⟩ ⟩
 
-                    have h_x_σ : x = [σ] :=
-                        Multiset.coe_eq_singleton.mp (congrArg Multiset.ofList h_x_σ_nil)
+                    have h_a_c_a₁: a = c :: a₁ := by simp [a, a', reduced_reduced, h_a₁']
 
-                    refine ⟨ h_x_σ_nil, List.cons_ne_nil σ [], ?_ ⟩
+                    have h_c_a₁_b: c :: (a₁ ++ b) = (c :: a₁) ++ b := by
+                        subst hA h_x' h_a₁' h_b'
+                        simp_all only [List.append_eq_nil_iff, not_and, List.cons_append,
+                          List.nil_append, List.append_assoc, List.reduceOption_cons_of_some, List.cons.injEq,
+                          true_and, a', a]
 
-                    have h_1_notin_A': 1 ∉ A'.start ∧ 1 ∉ A'.accept:= by
-                        constructor
-                        case left =>
-                            by_contra!
-                            apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
-                            contradiction
-                        case right =>
-                            by_contra!
-                            apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
-                            contradiction
+                    have h_x_a_b : x = a ++ b := by
+                        simp_rw [h_tail_a₁_b, h_c_a₁_b, symm h_a_c_a₁] at h_x'
+                        exact symm h_x'
 
-                    constructor
-                    case left =>
-                        subst h_x_σ
-                        --obtain ⟨ qs, qf, y', h_qs, h_qf, h_x, h_path ⟩ := A.mem_accepts_iff_exists_path.mp h_x_in_A
-                        -- have h_qs_qf_1 : qs = 1 ∧ qf = 1 := by
-                        --     simp [hA, εNFA_kstar] at h_qs h_qf
-                        --     exact ⟨ h_qs, h_qf ⟩
-                        -- have : qs ∉ A'.start ∧ qf ∉ A'.accept := by
-                        --     simp [h_qs_qf_1, h_1_notin_A']
-
-
-                        have : ∃ q₂ ∈ A'.accept, ∃ (x' : List (Option alphabet)),  x'.reduceOption = [σ] ∧ A'.IsPath t q₂ x' := by
-                            sorry
-                        obtain ⟨ q₂, hq₂, x', hx' ⟩ := this
-
-                        apply A'.mem_accepts_iff_exists_path.mpr
-                        use t, q₂, x'
-                        refine ⟨ ?_, hq₂, hx'.left, hx'.right ⟩
-                        have : some σ ≠ none := Option.some_ne_none σ
-                        rw [hA, εNFA_kstar] at h_step
-                        simp [this] at h_step
-
-
-
-                    case right =>
-                        rw [mem_accepts_iff_exists_path]
-                        use 1, 1, [none]
-
-                        simp [hA, εNFA_kstar, h_1_notin_A']
+                    simp [h_b', h_x_a_b, a, h_path_A_qf'_qf_b', h_qs_εClosure, h_path_qs_qf']
 
 lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
     (∃ (Ar: εNFA alphabet ℕ), r.matches' = Ar.accepts) →
@@ -1111,7 +1218,7 @@ lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
         case neg => simp [subset_refl]
 
     simp
-    rw [hAr, @Language.kstar_def, @Language.ext_iff, accepts_eq_0mod2_accepts Ar A' rfl]
+    rw [hAr, @Language.kstar_def, @Language.ext_iff, accepts_iff_0mod2_accepts Ar A' rfl]
 
     intro x
     constructor
@@ -1140,7 +1247,7 @@ lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
                 have h_start:  1 ∈ A.start  := by simp [A, εNFA_kstar]
                 have h_accept: 1 ∈ A.accept := by simp [A, εNFA_kstar]
                 have h_head: connect_head.reduceOption = head := by
-                    simp [connect_head, List.reduceOption_append, h_head']
+                    simp [connect_head, h_head']
 
                 have h_path_qf_to_1_ε: A.IsPath qf 1 [none] := by
                     simp [isPath_singleton, A, εNFA_kstar, h_qf]
@@ -1170,69 +1277,309 @@ lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
             rw [mem_accepts_iff_exists_path] at h_x_in_A
             obtain ⟨ qs, qf, x', ⟨ h_qs, h_qf, h_x', h_path ⟩ ⟩ := h_x_in_A
 
+            induction x' generalizing x with
+            | nil =>
+                subst h_x'
+                trivial
+            | cons c tail h_induction =>
+                cases c
+                case none =>
+                    have h_reduce : tail.reduceOption ≠ [] := by
+                        simp at h_x'
+                        simp [h_x', h_x_empty]
+                    have h_tail_not_empty : tail ≠ [] := by
+                        by_contra!
+                        simp [this] at h_reduce
 
+                    simp_all only [ne_eq, ↓existsAndEq, true_and, forall_eq', not_false_eq_true]
+                    obtain ⟨ qs', qf', a, b, a', b', ⟨ h_a', h_b', h_x_ab, h_A_path_qs_qs'_nil, h_A'_path_qs'_qf'_a, h_A_path_qf'_qf_b ⟩ ⟩ :=
+                        kstar_decompose_path A A' hA' rfl qs qf tail.reduceOption tail rfl h_reduce h_path
 
-            obtain ⟨ qs', qf', a, b, a', b', ⟨ h_a', h_b', h_x_ab, h_A_path_qs_qs'_nil, h_A'_path_qs'_qf'_a, h_A_path_qf'_qf_b ⟩ ⟩ :=
-                kstar_decompose_path A A' hA' rfl qs qf x x' h_x' h_x_empty h_path
-
-            --subst h_qs h_qf
-            --(x' = a ++ b ∧ A.IsPath qs qs' [] ∧ A'.IsPath qs' qf' a ∧ A.IsPath qf' qf b) := by
-            induction h_A_path_qf'_qf_b with
-            | nil q' =>
-                --simp [A, εNFA_kstar] at h_qs h_qf
-                use [a]
-                simp
-                simp at h_b'
-                simp [h_b'] at h_x_ab
-                refine ⟨ h_x_ab , ?_ ⟩
-
-                have h_qs'_start: qs' ∈ A'.start := by
-                    by_cases qs = 1
-                    case pos h_qs_1 =>
-                        subst h_qs_1
-                    cases h_A_path_qs_qs'_nil with
-                    | base _ h_eq =>
-                        simp at h_eq
-                        --simp [A, εNFA_kstar, symm h_eq] at h_qs
-                        --have : qs' % 2 = 1 := by omega
-                        have : a = x := by
-                            exact List.append_cancel_left (congrArg (HAppend.hAppend x) (id (symm h_x_ab)))
-                        subst this
-
-                        cases h_A'_path_qs'_qf'_a with
-                        | nil =>
-                            simp_all only [ne_eq, List.reduceOption_nil, List.nil_eq, A', A]
-                        | cons t q₁ q₂ c tail h_step h_path =>
-
-                            sorry
-
-                    | step => sorry
-
-                sorry
-
-            | cons =>
-                sorry
-
-            have hx :
-                ∃ L : List (List alphabet),
-                    x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts :=
-                    kstar_decompose_path (A := A) (A' := A') (hA := rfl) (x := x) h_in_A
-            rcases hx with ⟨L, h_flat, h_all⟩
-            exact ⟨L, h_flat, h_all⟩
 
 
 
 
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
     induction r
-    case zero => exact Zero_Regex_to_εNFA
+    case zero    => exact Zero_Regex_to_εNFA
     case epsilon => exact Epsilon_Regex_to_εNFA
-    case char σ => exact Char_Regex_to_εNFA σ
+    case char σ  => exact Char_Regex_to_εNFA σ
     case plus _ _ r₁ r₂ h_r₁ h_r₂ => exact Plus_Regex_to_εNFA r₁ r₂ h_r₁ h_r₂
     case comp _ _ r₁ r₂ h_r₁ h_r₂ => exact Comp_Regex_to_εNFA r₁ r₂ h_r₁ h_r₂
     case star _ _ r h_r => exact Star_Regex_to_εNFA r h_r
 
 end εNFA
 
+
+
+
+structure RNFA (α : Type u) (σ : Type v) where
+  /-- Transition function. The thing here is that we use regular expressions instead of
+  singular characters from the alphabet. -/
+  step : σ → RegularExpression α → Set σ
+  /-- Starting states. -/
+  start : Set σ
+  /-- Set of acceptance states. -/
+  accept : Set σ
+
+variable {α : Type u} {σ : Type v} (M : RNFA α σ) {S : Set σ} {s t u : σ} {a : α} {r : RegularExpression α}
+
+def regex_comp : List (RegularExpression α) → RegularExpression α
+  | .nil => 1
+  | .cons r as => r * (regex_comp as)
+
+lemma regex_append_epsilon (r : RegularExpression α) : (1 * r).matches' = r.matches' := by
+    simp_all only [RegularExpression.matches', one_mul]
+
+lemma regex_replicate_epsilon (n : ℕ) (L : List (RegularExpression α)) (hL: L = List.replicate n 1) :
+    (regex_comp L).matches' = {[]} := by
+    induction n generalizing L with
+    | zero =>
+        subst hL
+        simp_all only [List.replicate_zero]
+        rfl
+    | succ n ih =>
+        let tail : List (RegularExpression α) := List.replicate n 1
+        have : L = 1 :: tail := by
+            subst hL tail
+            simp_all only [forall_eq]
+            rfl
+        subst this
+
+        have : (regex_comp (1 :: tail)).matches' = (regex_comp tail).matches' := by
+            simp [regex_comp, regex_append_epsilon]
+
+        simp_all only [forall_eq, tail]
+
+
+namespace RNFA
+
+/-- The `εClosure` of a set is the set of states which can be reached by taking a finite string of
+ε-transitions from an element of the set. -/
+inductive εClosure (S : Set σ) : Set σ
+  | base : ∀ s ∈ S, εClosure S s
+  | step : ∀ (s), ∀ t ∈ M.step s 1, εClosure S s → εClosure S t
+
+@[simp]
+theorem subset_εClosure (S : Set σ) : S ⊆ M.εClosure S :=
+  εClosure.base
+
+@[simp]
+theorem εClosure_empty : M.εClosure ∅ = ∅ :=
+  eq_empty_of_forall_notMem fun s hs ↦ by induction hs <;> assumption
+
+@[simp]
+theorem εClosure_univ : M.εClosure univ = univ :=
+  eq_univ_of_univ_subset <| subset_εClosure _ _
+
+theorem mem_εClosure_iff_exists : s ∈ M.εClosure S ↔ ∃ t ∈ S, s ∈ M.εClosure {t} where
+  mp h := by
+    induction h with
+    | base => tauto
+    | step _ _ _ _ ih =>
+      obtain ⟨s, _, _⟩ := ih
+      use s
+      solve_by_elim [εClosure.step]
+  mpr := by
+    intro ⟨t, _, h⟩
+    induction h <;> subst_vars <;> solve_by_elim [εClosure.step]
+
+
+/-- `M.stepSet S a` is the union of the ε-closure of `M.step s a` for all `s ∈ S`. -/
+def stepSet (S : Set σ) (r : RegularExpression α) : Set σ :=
+  ⋃ s ∈ S, M.εClosure (M.step s r)
+variable {M}
+
+@[simp]
+theorem mem_stepSet_iff : s ∈ M.stepSet S r ↔ ∃ t ∈ S, s ∈ M.εClosure (M.step t r) := by
+    simp_rw [stepSet, mem_iUnion₂, exists_prop]
+
+@[simp]
+theorem stepSet_empty (r : RegularExpression α) : M.stepSet ∅ r = ∅ := by
+  simp_rw [stepSet, mem_empty_iff_false, iUnion_false, iUnion_empty]
+
+variable (M)
+
+def evalFrom (start : Set σ) : List (RegularExpression α) → Set σ :=
+  List.foldl M.stepSet (M.εClosure start)
+
+@[simp]
+theorem evalFrom_nil (S : Set σ) : M.evalFrom S [] = M.εClosure S := by
+    rfl
+
+@[simp]
+theorem evalFrom_append_singleton (S : Set σ) (x : List (RegularExpression α)) (r : RegularExpression α) :
+    M.evalFrom S (x ++ [r]) = M.stepSet (M.evalFrom S x) r := by
+  rw [evalFrom, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+@[simp]
+theorem evalFrom_empty (x : List (RegularExpression α)) : M.evalFrom ∅ x = ∅ := by
+  induction x using List.reverseRecOn with
+  | nil => rw [evalFrom_nil, εClosure_empty]
+  | append_singleton x a ih => rw [evalFrom_append_singleton, ih, stepSet_empty]
+
+theorem mem_evalFrom_iff_exists {s : σ} {S : Set σ} {x : List (RegularExpression α)} :
+    s ∈ M.evalFrom S x ↔ ∃ t ∈ S, s ∈ M.evalFrom {t} x := by
+  induction x using List.reverseRecOn generalizing s with
+  | nil => apply mem_εClosure_iff_exists
+  | append_singleton _ _ ih =>
+    simp_rw [evalFrom_append_singleton, mem_stepSet_iff, ih]
+    tauto
+
+/-- `M.eval x` computes all possible paths through `M` with input `x` starting at an element of
+`M.start`. -/
+def eval :=
+  M.evalFrom M.start
+
+@[simp]
+theorem eval_nil : M.eval [] = M.εClosure M.start :=
+  rfl
+
+@[simp]
+theorem eval_singleton (r : RegularExpression α) : M.eval [r] = M.stepSet (M.εClosure M.start) r :=
+  rfl
+
+@[simp]
+theorem eval_append_singleton (x : List (RegularExpression α)) (r : RegularExpression α) : M.eval (x ++ [r]) = M.stepSet (M.eval x) r :=
+  evalFrom_append_singleton _ _ _ _
+
+/-- `M.accepts` is the language of `x` such that there is a list of regular expressions
+L that can be composed to a regex that matches x and an accept state in `M.eval L`. -/
+def accepts : Language α :=
+  { x | ∃ S ∈ M.accept, ∃ (L : List (RegularExpression α)),
+        (regex_comp L).rmatch x ∧ S ∈ M.eval L }
+
+/-- `M.IsPath` represents a traversal in `M` from a start state to an end state by following a list
+of transitions in order. -/
+@[mk_iff]
+inductive IsPath : σ → σ → List (RegularExpression α) → Prop
+  | nil (s : σ) : IsPath s s []
+  | cons (t s u : σ) (r : RegularExpression α) (L : List (RegularExpression α)) :
+      t ∈ M.step s r → IsPath t u L → IsPath s u (r :: L)
+
+@[simp]
+theorem isPath_nil : M.IsPath s t [] ↔ s = t := by
+  rw [isPath_iff]
+  simp [eq_comm]
+
+alias ⟨IsPath.eq_of_nil, _⟩ := isPath_nil
+
+@[simp]
+theorem isPath_singleton {r : RegularExpression α} : M.IsPath s t [r] ↔ t ∈ M.step s r where
+  mp := by
+    rintro (_ | ⟨_, _, _, _, _, _, ⟨⟩⟩)
+    assumption
+  mpr := by tauto
+
+alias ⟨_, IsPath.singleton⟩ := isPath_singleton
+
+theorem isPath_append {x y : List (RegularExpression α)} :
+    M.IsPath s u (x ++ y) ↔ ∃ t, M.IsPath s t x ∧ M.IsPath t u y where
+  mp := by
+    induction x generalizing s with
+    | nil =>
+      rw [List.nil_append]
+      tauto
+    | cons x a ih =>
+      rintro (_ | ⟨t, _, _, _, _, _, h⟩)
+      apply ih at h
+      tauto
+  mpr := by
+    intro ⟨t, hx, _⟩
+    induction x generalizing s <;> cases hx <;> tauto
+
+theorem mem_εClosure_iff_exists_path {s₁ s₂ : σ} :
+    s₂ ∈ M.εClosure {s₁} ↔ ∃ n, M.IsPath s₁ s₂ (.replicate n 1) where
+  mp h := by
+    induction h with
+    | base t =>
+      use 0
+      subst t
+      apply IsPath.nil
+    | step _ _ _ _ ih =>
+      obtain ⟨n, _⟩ := ih
+      use n + 1
+      rw [List.replicate_add, isPath_append]
+      tauto
+  mpr := by
+    intro ⟨n, h⟩
+    induction n generalizing s₂
+    · rw [List.replicate_zero] at h
+      apply IsPath.eq_of_nil at h
+      solve_by_elim
+    · simp_rw [List.replicate_add, isPath_append, List.replicate_one, isPath_singleton] at h
+      obtain ⟨t, _, _⟩ := h
+      solve_by_elim [εClosure.step]
+
+/-! ### Conversions between `εNFA` and `NFA` -/
+
+def εNFA_to_trivial_RNFA (A: εNFA alphabet ℕ): RNFA alphabet ℕ := {
+    start := A.start
+    accept := A.accept
+    step := fun q r =>
+        {(s : ℕ) | ∃ (c: Option alphabet), s ∈ A.step q c ∧ r.rmatch [c].reduceOption}
+}
+
+lemma εNFA_to_RNFA_evalFrom (A: εNFA alphabet ℕ) (rA: RNFA alphabet ℕ)
+    (hrA: rA = εNFA_to_trivial_RNFA A) (x: List alphabet)
+    (L : List (RegularExpression alphabet)) (S : Set ℕ):
+    (regex_comp L).rmatch x → rA.evalFrom S L = A.evalFrom S x := by
+    intro h
+    induction L with
+    | nil =>
+        have : x = [] := by
+            subst hrA
+            simp_all only [RegularExpression.rmatch_iff_matches']
+            exact h
+        subst this
+        rw [@Set.ext_iff]
+        intro q
+        constructor
+        case mp =>
+            intro t
+            simp [evalFrom_nil] at t ⊢
+            subst hrA
+            simp_rw [εNFA_to_trivial_RNFA] at t
+            sorry
+        case mpr =>
+            simp [evalFrom_nil]
+            intro h_qA
+
+            --subst hrA
+            --simp_rw [εNFA_to_trivial_RNFA]
+            induction h_qA with
+            | base s h_s =>
+                have : S ⊆ rA.εClosure S := by exact subset_εClosure rA S
+                exact mem_of_subset_of_mem this h_s
+            | step s t h_step h_s h_induction =>
+                sorry
+    | cons r tail h_induction =>
+        sorry
+
+
+lemma εNFA_to_RNFA (A: εNFA alphabet ℕ) : ∃ (rA: RNFA alphabet ℕ), rA.accepts = A.accepts := by
+    let rA := εNFA_to_trivial_RNFA A
+    use rA
+    simp [@Language.ext_iff]
+    intro x
+    constructor
+    case mp =>
+        intro h_x_in_rA
+        obtain ⟨ qf, h_qf, L, ⟨ h_xL, h_qfL ⟩ ⟩ := h_x_in_rA
+        use qf
+        induction x with
+        | nil =>
+            refine ⟨ h_qf, ?_ ⟩
+            simp_all [eval, evalFrom]
+
+            sorry
+        | cons c tail h_induction => sorry
+
+    case mpr =>
+        sorry
+-- def Regex_from_εNFA (A : εNFA alphabet ℕ) : RegularExpression alphabet :=
+
+
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : ∃ (r: RegularExpression alphabet), r.matches' = A.accepts := by
+
     sorry

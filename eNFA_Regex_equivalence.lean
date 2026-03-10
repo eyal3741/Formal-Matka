@@ -1080,12 +1080,12 @@ case 2.2: The path for b' starts from 1 and we can make an ε-step from qf' into
 
 lemma kstar_decompose_path
     (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
-    (qs qf : ℕ) (x' : List (Option alphabet)) (h_x'_not_empty: x' ≠ [])
+    (qs qf : ℕ) (x' : List (Option alphabet)) (h_x'_not_empty: x'.reduceOption ≠ [])
     (h_A_path_qs_qf_x': A.IsPath qs qf x') :
         ∃ (qs' qf' : ℕ) (ε₁' a' ε₂' b' : List (Option alphabet)),
-        (x' = (ε₁' ++ a' ++ ε₂' ++ b')) ∧ (ε₁' ≠ [] ∨ a' ≠ []) ∧
+        (x' = (ε₁' ++ a' ++ ε₂' ++ b')) ∧ (a'.reduceOption ≠ []) ∧
         (ε₁'.reduceOption = []) ∧ (ε₂'.reduceOption = []) ∧
-        ((ε₁' ≠ [] ∧ (A.IsPath qs qs' ε₁') ∧ qs' ∈ A'.start) ∨ (ε₁' = [] ∧ qs' = qs)) ∧
+        ((ε₁' = [] ∧ qs' = qs) ∨ (ε₁' ≠ [] ∧ (A.IsPath qs qs' ε₁') ∧ qs' ∈ A'.start)) ∧
         (A'.IsPath qs' qf' a') ∧
         ((ε₂' = [] ∧ b' = [] ∧ qf' = qf) ∨
          (ε₂' = [none]) ∧ (qf' ∈ A'.accept) ∧ (A.IsPath qf' 1 ε₂') ∧ (A.IsPath 1 qf b')) := by
@@ -1105,76 +1105,77 @@ lemma kstar_decompose_path
         by_cases h_tail_empty: tail = []
         case pos =>
             clear h_induction
-            by_cases h_c_none: c = none
-            case pos =>
-                left
-                simp [h_c_none, h_tail_empty]
-            case neg =>
-                right
-                use qs, t, [], [c], []
-                subst tail
+            subst h_tail_empty
+            cases c
+            case none h_c_none => contradiction
+            case some c =>
+                use qs, t, [], [some c], []
                 simp at h_path
                 subst h_path
-                simp [hA, εNFA_kstar, h_c_none] at h_step
+                simp [hA, εNFA_kstar] at h_step
                 simp [h_step]
         case neg =>
-            cases h_induction h_tail_empty
-            case inl h_tail_reduce_empty =>
+            by_cases h_tail_reduce_empty: tail.reduceOption = []
+            case pos =>
                 clear h_induction
 
-                cases c
-                case none =>
-                    left
-                    simp only [List.reduceOption_cons_of_none, h_tail_reduce_empty]
-                case some c =>
-                    have h_qs_not_1 : qs ≠ 1 := by
-                        by_contra!
-                        subst this
-                        simp [hA, εNFA_kstar] at h_step
-                        apply A'.if_0mod2_step_is_0mod2 hA' 1 t (some c) at h_step
-                        omega
+                have h_c_some: ∃ c', c = some c' := by
+                    cases c
+                    case none => contradiction
+                    case some c' => use c'
 
-                    by_cases h_t_qf: t = qf
-                    case pos =>
-                        cases tail
-                        case nil =>
-                            right
-                            subst h_t_qf
-                            simp [hA, εNFA_kstar, h_qs_not_1] at h_step
-                            use qs, t, [], [some c], []
-                            simp [h_step]
-                        case cons c' tail' =>
-                            simp
-                    case neg =>
-                        -- we need [some c] (ε*)... but we need to know exactly what is the ε count...
-                        -- so we need a way to say "the last node t' in h_path where t' ≠ 1"
-                        -- and derive t' ∈ A'.accept... what a headache :(
-                        obtain ⟨ n, h_n ⟩ := (List.reduceOption_eq_nil_iff tail).mp h_tail_reduce_empty
+                obtain ⟨ c, h_c_some ⟩ := h_c_some
+                subst h_c_some
 
-                        have : ∃ (n' t' : ℕ), (n' ≤ n) ∧ (t' ∈ A'.accept) ∧
-                            A'.IsPath t t' (List.replicate n none) := by
-                            clear! h_x' h_x'_not_empty h_stupid_lists h_step h_x'_not_empty h_tail_empty h_t_qf
-                            induction h_path
-                            case nil t' =>
-                                simp at h_n
-                                use 0, t'
-                                simp [h_n]
+                have h_qs_not_1 : qs ≠ 1 := by
+                    by_contra!
+                    subst this
+                    simp [hA, εNFA_kstar] at h_step
+                    apply A'.if_0mod2_step_is_0mod2 hA' 1 t (some c) at h_step
+                    omega
 
-                            case cons _ _ _ _ _ hi =>
-                                simp at hi
-                                sorry
+                -- induction h_path
+                -- case nil => contradiction
+                -- case cons t' _ _ c' tail' h_step' h_path' h_induction' =>
+                --     sorry
+                -- obtain ⟨ n, h_n ⟩ := (List.reduceOption_eq_nil_iff tail).mp h_tail_reduce_empty
+                -- have : ∃ (n' t' : ℕ), (n' < n) ∧ (t' ∈ A'.accept) ∧
+                --         A'.IsPath t t' (List.replicate n' none) ∧
 
-                        obtain ⟨ n', t', h_n' ⟩ := this
+                by_cases h_t_qf: t = qf
+                case pos =>
+                    use qs, t, [], [some c], []
 
-                        use qs, t', [some c] ++ (List.replicate n' none), (List.replicate (n - n') none)
-                        simp [h_x', h_tail_reduce_empty, h_n']
-                        subst h_n
+                case neg =>
+                    -- we need [some c] (ε*)... but we need to know exactly what is the ε count...
+                    -- so we need a way to say "the last node t' in h_path where t' ≠ 1"
+                    -- and derive t' ∈ A'.accept... what a headache :(
+                    obtain ⟨ n, h_n ⟩ := (List.reduceOption_eq_nil_iff tail).mp h_tail_reduce_empty
+
+                    have : ∃ (n' t' : ℕ), (n' ≤ n) ∧ (t' ∈ A'.accept) ∧
+                        A'.IsPath t t' (List.replicate n none) := by
+                        clear! h_x' h_x'_not_empty h_stupid_lists h_step h_x'_not_empty h_tail_empty h_t_qf
+                        induction h_path
+                        case nil t' =>
+                            simp at h_n
+                            use 0, t'
+                            simp [h_n]
+
+                        case cons _ _ _ _ _ hi =>
+                            simp at hi
+                            sorry
+
+                    obtain ⟨ n', t', h_n' ⟩ := this
+
+                    use qs, t', [some c] ++ (List.replicate n' none), (List.replicate (n - n') none)
+                    simp [h_x', h_tail_reduce_empty, h_n']
+                    subst h_n
 
 
 
 
 
-                        sorry
+                    sorry
 
             case inr h_induction =>
                 right
@@ -1281,130 +1282,68 @@ lemma kstar_decompose_path
                     exact A'.isPath_append.mpr ⟨ qs', ⟨ h_path_t_qf', h_path_A'_qs'_qf'_a' ⟩ ⟩
 
 lemma kstar_decompose_words (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
-    (x: List alphabet) (hx: x ∈ A.accepts) :
-    (x = []) ∨ ∃ (a b : List alphabet) (a' : List (Option alphabet)), (x = a ++ b) ∧
-    (a = a'.reduceOption ∧ a' ≠ []) ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
-    by_cases h_x_empty: x = []
-    case pos => left; exact h_x_empty
+    (x: List alphabet) (hx: x ∈ A.accepts) (h_x_not_empty: x ≠ []) :
+    ∃ (a b : List alphabet), (x = a ++ b) ∧ (a ≠ []) ∧ a ∈ A'.accepts ∧ b ∈ A.accepts := by
+
+    obtain ⟨ qs, qf, x', ⟨ h_qs, h_qf, h_x', h_path ⟩ ⟩ := A.mem_accepts_iff_exists_path.mp hx
+
+    have h_x'_not_empty : x'.reduceOption ≠ [] := by
+        subst hA h_x'
+        exact h_x_not_empty
+
+    obtain ⟨ qs', qf', ε₁', a', ε₂', b', h_decompose_words ⟩ :=
+        A.kstar_decompose_path A' hA' hA qs qf x' h_x'_not_empty h_path
+    obtain ⟨ h_x'_decomposition, h_progression, h_ε₁', h_ε₂', h_path_ε₁', h_path_a', h_next_part⟩ :=
+        h_decompose_words
+
+    by_cases h_ε₁'_empty: ε₁' = []
+    case pos =>
+        subst h_ε₁'_empty
+        simp at h_path_ε₁' h_progression
+        cases h_path_a'
+        case nil => contradiction
+        case cons t c tail h_step h_path =>
+            apply A'.if_0mod2_step_is_0mod2 hA' at h_step
+            simp [hA, εNFA_kstar] at h_qs
+            subst h_qs h_path_ε₁'
+            omega
     case neg =>
-        right
-        obtain ⟨ qs, qf, x', ⟨ h_qs, h_qf, h_x', h_path ⟩ ⟩ := A.mem_accepts_iff_exists_path.mp hx
-        have h_x'_not_empty : x' ≠ [] := by
-            subst hA h_x'
-            intro h
-            simp_all only [isPath_nil, List.reduceOption_nil, not_true_eq_false]
-
-        obtain ⟨ qs', qf', ε₁', a', ε₂', b', h_decompose_words ⟩ :=
-            A.kstar_decompose_path A' hA' hA qs qf x' h_x'_not_empty h_path
-        obtain ⟨ h_x'_decomposition, h_progression, h_ε₁', h_ε₂', h_path_ε₁', h_path_a',
-                 h⟩ := h_decompose_words
-
-        by_cases h_ε₁'_empty: ε₁' = []
-        case pos =>
-            subst h_ε₁'_empty
-            simp at h_path_ε₁' h_progression
-            cases h_path_a'
-            case nil => contradiction
-            case cons t c tail h_step h_path =>
-                apply A'.if_0mod2_step_is_0mod2 hA' at h_step
-                simp [hA, εNFA_kstar] at h_qs
-                subst h_qs h_path_ε₁'
-                omega
-
-
-        have h_qs'_0mod2: qs' % 2 = 0 := by
+        simp [h_ε₁'_empty] at h_path_ε₁'
+        have h_ε₂'_not_empty: ε₂' ≠ [] := by
             by_contra!
-            cases h_path_a'
-            case nil =>
-            case cons t' c' tail h_step_qs'_t _ =>
-                apply A'.if_0mod2_step_is_0mod2 hA' qs' t' c' at h_step_qs'_t
-                omega
+            simp [this] at h_next_part
+            simp [hA, εNFA_kstar] at h_qf
+            obtain ⟨_, h_qf'⟩ := h_next_part
+            subst h_qf h_qf'
+            obtain ⟨ _, h_qs'_start ⟩ := h_path_ε₁'
+            apply A'.if_0mod2_qs_is_0mod2 hA' at h_qs'_start
+            apply A'.if_0mod2_path_is_same_mod2 hA' at h_path_a'
+            omega
 
-        cases h
-        case inl h_ε₂_empty =>
-            simp [h_ε₂_empty] at h_x'_decomposition
-            have h_qf'_0mod2 : qf' % 2 = 0 := by
-                have := if_0mod2_path_is_same_mod2 A' hA' qs' qf' a' h_path_a'
+        have h_a'_not_empty: a' ≠ [] := by
+            by_contra!
+            subst this
+            contradiction
 
-                simp [h_qs'_0mod2] at this
-                exact symm this
+        simp [h_ε₂'_not_empty] at h_next_part
+        let a := a'.reduceOption
+        let b := b'.reduceOption
+        use a, b
+        subst h_x'_decomposition
 
-        case inr h_decomose_words =>
-            obtain ⟨ qs', qf', ε', a', b', h_x'_ε'_a'_b', h_a', h_ε', h_a'_path_in_A', h_qs'_closure, h_b'_path_in_A⟩ :=
-                h_decomose_words
+        simp [List.reduceOption_append, h_ε₁', h_ε₂'] at h_x'
 
-            simp [hA, εNFA_kstar] at h_qs h_qf
-            subst h_qs h_qf
+        obtain ⟨ _, h_qf'_accept, _, h_path_b' ⟩ := h_next_part
 
-            have h_qs'_0mod2: qs' % 2 = 0 := by
-                by_contra!
-                cases h_a'_path_in_A'
-                case nil => contradiction
-                case cons t' c' tail h_step_qs'_t _ =>
-                    apply A'.if_0mod2_step_is_0mod2 hA' qs' t' c' at h_step_qs'_t
-                    omega
+        have h_a_in_A' : a ∈ A'.accepts :=
+            A'.mem_accepts_iff_exists_path.mpr ⟨ qs', qf', a', ⟨ h_path_ε₁'.right, h_qf'_accept, rfl, h_path_a' ⟩ ⟩
 
-            cases h_b'_path_in_A
-            case inl h_b'_empty =>
-                absurd h_b'_empty.right
-                by_contra!
-                subst this
-                apply A'.if_0mod2_path_is_same_mod2 hA' qs' 1 a' at h_a'_path_in_A'
-                omega -- contradiction
+        have h_1_start : 1 ∈ A.start := by simp [hA, εNFA_kstar]
+        have h_b_in_A : b ∈ A.accepts :=
+            A.mem_accepts_iff_exists_path.mpr ⟨ 1, qf, b', ⟨ h_1_start, h_qf, rfl, h_path_b' ⟩ ⟩
 
-            case inr h_b'_path_in_A =>
-                have h_qs'_neq_1 : qs' ≠ 1 := by omega
-                simp [h_qs'_neq_1] at h_qs'_closure
-
-                have h_qf'_0mod2 : qf' % 2 = 0 := by
-                    have := if_0mod2_path_is_same_mod2 A' hA' qs' qf' a' h_a'_path_in_A'
-                    simp [h_qs'_0mod2] at this
-                    exact symm this
-                have h_qf'_neq_1 : qf' ≠ 1 := by omega
-
-                have h_1_notin_A': 1 ∉ A'.start ∧ 1 ∉ A'.accept ∧ ∀ (c : Option alphabet), A'.step 1 c = ∅ := by
-                    have h_1_notin_start : 1 ∉ A'.start := by
-                        by_contra!
-                        apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
-                        contradiction
-                    have h_1_notin_accept : 1 ∉ A'.accept := by
-                        by_contra!
-                        apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
-                        contradiction
-                    have h_1_notin_step : ∀ (c : Option alphabet), A'.step 1 c = ∅ := by
-                        intro c
-                        by_contra!
-                        obtain ⟨ t, ht ⟩ := this
-                        apply if_0mod2_step_is_0mod2 A' hA' 1 at ht
-                        omega
-                    exact ⟨h_1_notin_start, h_1_notin_accept, h_1_notin_step⟩
-
-                have h_qs'_start : qs' ∈ A'.start := by
-                    simp [hA, εNFA_kstar, h_1_notin_A', h_qs'_neq_1] at h_qs'_closure
-                    exact h_qs'_closure
-
-                let a := a'.reduceOption
-                let b := b'.reduceOption
-                use a, b, a'
-
-                have h_x_a_b: x = a ++ b := by
-                    subst h_x'_ε'_a'_b'
-                    simp [List.reduceOption_append, h_ε'] at h_x'
-                    subst h_x'
-                    rfl
-
-                obtain ⟨ h_b'_path_in_A, h_qf'_accept ⟩ := h_b'_path_in_A
-
-                have h_a_in_A' : a ∈ A'.accepts :=
-                    A'.mem_accepts_iff_exists_path.mpr ⟨ qs', qf', a', ⟨ h_qs'_start, h_qf'_accept, rfl, h_a'_path_in_A' ⟩ ⟩
-
-                have h_1_A: 1 ∈ A.start ∧ 1 ∈ A.accept := by simp [hA, εNFA_kstar]
-
-                have h_b_in_A : b ∈ A.accepts :=
-                    A.mem_accepts_iff_exists_path.mpr ⟨ 1, 1, b', ⟨ h_1_A.left, h_1_A.right, rfl, h_b'_path_in_A ⟩ ⟩
-
-                exact ⟨ h_x_a_b, ⟨ rfl, h_a' ⟩, h_a_in_A' , h_b_in_A ⟩
-
+        simp [h_x', a, b]
+        refine ⟨ h_progression, h_a_in_A', h_b_in_A ⟩
 
 structure εNFA_kstar_word_list
     (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')

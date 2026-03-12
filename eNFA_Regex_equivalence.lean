@@ -1144,7 +1144,13 @@ lemma kstar_decompose_path
 
                 by_cases h_t_qf: t = qf
                 case pos =>
-                    use qs, t, [], [some c], []
+                    subst h_t_qf
+                    obtain ⟨ n, h_n ⟩ := (List.reduceOption_eq_nil_iff tail).mp h_tail_reduce_empty
+                    use qs, t, [], [some c], [none], List.replicate (n-1) none
+                    simp [hA, εNFA_kstar] at h_step
+                    simp [h_step, h_n]
+                    refine ⟨ sorry, ?_ ⟩
+
 
                 case neg =>
                     -- we need [some c] (ε*)... but we need to know exactly what is the ε count...
@@ -1345,43 +1351,24 @@ lemma kstar_decompose_words (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA :
         simp [h_x', a, b]
         refine ⟨ h_progression, h_a_in_A', h_b_in_A ⟩
 
-structure εNFA_kstar_word_list
+def εNFA_kstar_word_decompisition
     (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
-    (x: List alphabet) (hx: x ∈ A.accepts)
-    where
-    L  : List (List alphabet)
-    hx : x = L.flatten
-    hL : ∀ y ∈ L, y ∈ A'.accepts
+    (x : List alphabet) (hx: x ∈ A.accepts) :
+    ∃ (L : List (List alphabet)), x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts := by
+    by_cases h_x_empty: x = []
+    case pos => subst x; use []; tauto
+    case neg =>
+        obtain ⟨ a, b, h_x_a_b, h_a_not_empty, h_a_in_A', h_b_in_A ⟩ :=
+            A.kstar_decompose_words A' hA' hA x hx h_x_empty
+        obtain ⟨ L', h_L' ⟩ := A.εNFA_kstar_word_decompisition A' hA' hA b h_b_in_A
+        use [a] ++ L'
 
-inductive εNFA_kstar_word_decompisition
-    (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
-    (x : List alphabet) (hx: x ∈ A.accepts)
-| nil: εNFA_kstar_word_decompisition A A' hA' hA x hx
-| cons (a b : List alphabet) (ha : a ∈ A'.accepts) (hb : b ∈ A.accepts) (words : εNFA_kstar_word_list A A' hA' hA b hb):
-    εNFA_kstar_word_decompisition A A' hA' hA x hx
-
-def εNFA_kstar_word_decompisition.to_word_list
-    (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
-    (x : List alphabet) (hx : x ∈ A.accepts) :
-    εNFA_kstar_word_list A A' hA' hA x hx :=
-    if h_x_empty: x = [] then
-    {
-        L := []
-        hx := by subst h_x_empty; exact List.flatten_nil
-        hL := by simp only [List.not_mem_nil, IsEmpty.forall_iff, implies_true]
-    }
-    else
-    {
-        L :=
-
-            --kstar_decompose_path
-
-        hx := by
-            sorry
-    }
---decreasing_by
-
-
+        simp [h_x_a_b, h_a_in_A', h_L']
+        exact h_L'.right
+termination_by x.length
+decreasing_by
+    simp only [h_x_a_b, List.length_append, lt_add_iff_pos_left]
+    exact a.ne_nil_iff_length_pos.mp h_a_not_empty
 
 lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
     (∃ (Ar: εNFA alphabet ℕ), r.matches' = Ar.accepts) →
@@ -1450,32 +1437,11 @@ lemma Star_Regex_to_εNFA (r : RegularExpression alphabet) :
 
     case mpr =>
         intro h_x_in_A
-        rw [A.mem_accepts_iff_exists_path] at h_x_in_A
 
         by_cases h_x_empty: x ≠ []
         case neg => use []; tauto
         case pos =>
-            obtain ⟨ qs, qf, x', ⟨ h_qs, h_qf, h_x', h_path ⟩ ⟩ := h_x_in_A
-            obtain ⟨ qs', qf', a, b, a', b', ⟨ h_a', h_b', h_x_ab, h_A_path_qs_qs'_nil, h_A'_path_qs'_qf'_a, h_A_path_qf'_qf_b ⟩ ⟩ :=
-                        kstar_decompose_path A A' hA' rfl qs qf x x' h_x' h_x_empty h_path
-
-            cases b' with
-            | nil =>
-                have : qf = qf' := symm (A.isPath_nil.mp h_A_path_qf'_qf_b)
-                subst this
-                have h_qf: qf = 1:= by
-                    subst h_x' h_a' h_b'
-                    simp_all only [isPath_nil, List.reduceOption_nil, List.append_nil, ne_eq, A', A]
-                    exact h_qf
-                subst h_qf h_b'
-                simp at h_x_ab
-                use [a]
-                simp [h_x_ab]
-                rw[A'.mem_accepts_iff_exists_path]
-
-
-            | cons c tail => sorry
-
+            exact A.εNFA_kstar_word_decompisition A' hA' rfl x h_x_in_A
 
 
 theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet ℕ), r.matches' = A.accepts := by
@@ -1488,8 +1454,6 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
     case star _ _ r h_r => exact Star_Regex_to_εNFA r h_r
 
 end εNFA
-
-
 
 
 structure RNFA (α : Type u) (σ : Type v) where

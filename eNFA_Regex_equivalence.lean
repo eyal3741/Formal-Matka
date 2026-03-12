@@ -1314,8 +1314,8 @@ lemma kstar_decompose_path
                 cases c
                 case none =>
                     cases h_first_part
-                    case inl h_ε₁_empty =>
-                        obtain ⟨ h_ε₁_empty, h_qs'_t ⟩ := h_ε₁_empty
+                    case inl h_ε₁'_empty =>
+                        obtain ⟨ h_ε₁_empty, h_qs'_t ⟩ := h_ε₁'_empty
                         subst h_ε₁_empty h_qs'_t
 
                         simp [hA, εNFA_kstar] at h_step
@@ -1360,13 +1360,31 @@ lemma kstar_decompose_path
                             apply A'.isPath_singleton.mpr at h_step
                             exact A'.isPath_append.mpr ⟨qs', h_step, h_path_a'_in_A' ⟩
 
-
-                    case inr =>
+                    case inr h_ε₁'_not_empty =>
                         use qs', qf', [none] ++ ε₁', a', ε₂', b'
-                        sorry
+                        simp [h_tail, h_a', h_ε₁', h_ε₂', h_next_part, h_path_a'_in_A' , h_ε₁'_not_empty]
+                        obtain ⟨ h_ε₁'_not_empty, h_ε₁'_path, h_qs'_start ⟩ := h_ε₁'_not_empty
+                        apply A.isPath_singleton.mpr at h_step
+                        exact A.isPath_append.mpr ⟨ t, h_step, h_ε₁'_path ⟩
                 case some c =>
-                    use qs, qf', [], [some c] ++ ε₁' ++ a', ε₂', b'
-                    sorry
+                    cases h_first_part
+                    case inl h_ε₁'_empty =>
+                        obtain ⟨ h_ε₁'_empty, h_qs'_t ⟩ := h_ε₁'_empty
+                        use qs, qf', [], [some c] ++ ε₁' ++ a', ε₂', b'
+                        simp [h_tail, h_ε₂', h_next_part]
+                        subst h_ε₁'_empty h_qs'_t
+                        simp [hA, εNFA_kstar] at h_step
+                        apply A'.isPath_singleton.mpr at h_step
+                        exact A'.isPath_append.mpr ⟨ qs', h_step, h_path_a'_in_A' ⟩
+                    case inr h_ε₁'_not_empty =>
+                        obtain ⟨ h_ε₁'_not_empty, h_ε₁'_path, h_qs'_start ⟩ := h_ε₁'_not_empty
+                        -- TODO: LAST PART <3 :O !! !!
+                        use qs, t, [], [some c], [none], ε₁' ++ a' ++ ε₂' ++ b'
+                        simp [h_tail, h_ε₁', h_ε₁'_not_empty]
+
+                        simp [hA, εNFA_kstar] at h_step
+
+                        sorry
 
 lemma kstar_decompose_words (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
     (x: List alphabet) (hx: x ∈ A.accepts) (h_x_not_empty: x ≠ []) :

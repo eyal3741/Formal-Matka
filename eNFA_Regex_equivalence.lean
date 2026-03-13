@@ -1418,7 +1418,16 @@ lemma kstar_decompose_path
                             have h_path_qs_qf'' := A'.isPath_append.mpr ⟨ t, h_step, h_path_t_qf'' ⟩
                             apply A.path_if_contains A' (A.kstar_contains A' hA hA') qs' qf' at h_path_a'_in_A'
                             have h_path_q_qf' := A.isPath_append.mpr ⟨ qs', h_path_qf''_qf, h_path_a'_in_A' ⟩
-                            refine ⟨ sorry, h_path_qs_qf'', h_qf''_accept, h_1_step_qf'', ?_ ⟩
+
+                            have h_tail_split : List.replicate n none ++ (a' ++ (ε₂' ++ b')) =
+                            List.replicate n' none ++
+                            none :: (List.replicate (n - n' - 1) none ++ (a' ++ (ε₂' ++ b'))) := by
+                                have h_eq : n = n' + (1 + (n - n' - 1)) := by
+                                    omega
+                                rw [h_eq, List.replicate_add, List.replicate_add]
+                                simp [List.append_assoc]
+
+                            refine ⟨ h_tail_split, h_path_qs_qf'', h_qf''_accept, h_1_step_qf'', ?_ ⟩
 
                             cases h_next_part
                             case inl h_ε₂'_empty =>

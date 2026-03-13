@@ -1145,7 +1145,7 @@ lemma kstar_decompose_path
                     apply A'.if_0mod2_step_is_0mod2 hA' 1 t c at h_step
                     omega
 
-                have : A'.IsPath t qf tail ∨ ∃ (n' qf' : ℕ), (n' ≤ n) ∧ A'.IsPath t qf' (List.replicate n' none) ∧
+                have : A'.IsPath t qf tail ∨ ∃ (n' qf' : ℕ), (n' < n) ∧ A'.IsPath t qf' (List.replicate n' none) ∧
                         qf' ∈ A'.accept ∧ A.IsPath 1 qf (List.replicate (n - n' - 1) none) := by
                     clear h_x'_not_empty h_c_some h_qs_not_1
                     subst h_n
@@ -1289,23 +1289,39 @@ lemma kstar_decompose_path
                     exact A'.isPath_append.mpr ⟨ t, h_step, h_path_in_A' ⟩
 
                 case inr h =>
-                    obtain ⟨ n', qf', h_n', h_path_t_qf', h_qf'_accept, h_path_qf'_qf ⟩ := h
-                    use qf', [], [c] ++ (List.replicate n' none), [none], (List.replicate (n - n' - 1) none)
-                    simp_all
-                    have : ([c] ++ List.replicate n' none).reduceOption ≠ [] := by
+                        obtain ⟨ n', qf', h_n', h_path_t_qf', h_qf'_accept, h_path_qf'_qf ⟩ := h
                         obtain ⟨ c, h_c_some ⟩ := h_c_some
-                        simp [h_c_some]
-                    simp at this
-                    simp [this]
-                    obtain ⟨ c, h_c_some ⟩ := h_c_some
-                    subst h_c_some
-                    simp [εNFA_kstar] at h_step
-                    apply A'.isPath_singleton.mpr at h_step
-                    have := A'.isPath_append.mpr ⟨ t, h_step, h_path_t_qf' ⟩
-                    simp at this
-                    simp [this]
-                    simp [εNFA_kstar, h_qf'_accept]
-                    sorry
+                        subst h_c_some
+
+                        have h_a_nonempty : ([some c] ++ List.replicate n' none).reduceOption ≠ [] := by
+                            simp
+
+                        have h_stepA : t ∈ A'.step qs (some c) := by
+                            simp [hA, εNFA_kstar, h_qs_not_1] at h_step
+                            exact h_step
+
+                        use qf', [], [some c] ++ List.replicate n' none, [none], List.replicate (n - n' - 1) none
+                        refine ⟨ ?_, h_a_nonempty, by simp, by simp, ?_, ?_, ?_ ⟩
+
+                        ·
+                            rw [h_n]
+                            have h_eq : n = n' + (1 + (n - n' - 1)) := by
+                                omega
+                            rw [h_eq, List.replicate_add, List.replicate_add]
+                            simp [List.append_assoc]
+
+                        ·
+                            left
+                            simp
+
+                        ·
+                            exact A'.isPath_append.mpr ⟨ t, A'.isPath_singleton.mpr h_stepA, h_path_t_qf' ⟩
+
+                        ·
+                            right
+                            refine ⟨ rfl, h_qf'_accept, ?_, h_path_qf'_qf ⟩
+                            apply A.isPath_singleton.mpr
+                            simp [hA, εNFA_kstar, h_qf'_accept]
 
             case neg =>
                 obtain ⟨ qs', qf', ε₁', a', ε₂', b', h ⟩ := h_induction h_tail_reduce_empty

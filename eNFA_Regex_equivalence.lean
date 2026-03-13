@@ -1504,7 +1504,7 @@ lemma kstar_decompose_words (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA :
         simp [h_x', a, b]
         refine ⟨ h_progression, h_a_in_A', h_b_in_A ⟩
 
-def εNFA_kstar_word_decompisition
+lemma εNFA_kstar_word_decompisition
     (A A' : εNFA alphabet ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
     (x : List alphabet) (hx: x ∈ A.accepts) :
     ∃ (L : List (List alphabet)), x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts := by
@@ -1608,6 +1608,11 @@ theorem Regex_to_εNFA (r: RegularExpression alphabet) : ∃ (A: εNFA alphabet 
 
 end εNFA
 
+
+
+--------------------------
+-- THE OTHER DIRECTION: --
+--------------------------
 
 structure RNFA (α : Type u) (σ : Type v) where
   /-- Transition function. The thing here is that we use regular expressions instead of

@@ -1636,7 +1636,7 @@ theorem Regex_to_εNFA (r: RegularExpression α) : ∃ (A: εNFA α ℕ), r.matc
 variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --removed?
 
 
-lemma dont_go_nowhere (A : εNFA alphabet ℕ): A.start = ∅ → A.accept = ∅ := by sorry
+lemma dont_go_nowhere (A : εNFA alphabet ℕ): A.start = ∅ → A.accepts = 0 := by sorry
 
 
 

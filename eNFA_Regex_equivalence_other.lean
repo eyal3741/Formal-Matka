@@ -258,7 +258,7 @@ end εNFA
 variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --removed?
 
 
-lemma dont_go_nowhere (A : εNFA alphabet ℕ): A.start = ∅ → A.accepts = 0 := by sorry
+lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by sorry
 
 
 
@@ -341,9 +341,8 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
     rintro ( hnill | ⟨ hAStartNotEmpty, n, hnReachable, hGreaternUnreachable ⟩ )
     case inl =>
         use 0
-        simp only [RegularExpression.matches']
+        simp only [dont_go_nowhere A hnill, RegularExpression.matches']
 
-        sorry
     case inr =>
 
         sorry

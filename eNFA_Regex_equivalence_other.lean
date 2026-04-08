@@ -255,7 +255,7 @@ end εNFA
 -- THE OTHER DIRECTION: --
 --------------------------
 
-variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --removed?
+variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --TODO: change format
 
 
 lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by sorry
@@ -279,19 +279,23 @@ def to_singular (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
     : εNFA alphabet ℕ
 }
 
-def is_singular (A' : εNFA alphabet ℕ) :=
-    ∃ (A : εNFA alphabet ℕ), A' = to_singular A
+def is_alone_in_set (set: Set ℕ) (n: ℕ):= set = { n }
+def is_singular (A : εNFA alphabet ℕ) :=
+    (∃s: ℕ, is_alone_in_set A.start s) ∧ (∃a: ℕ, is_alone_in_set A.accept a)
 
 lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_singular A) :
     A.accepts = A'.accepts := by sorry
 
-
-def is_finite_automata (A : εNFA alphabet ℕ) :=
-    (A.start = ∅) ∨ (A.start ≠ ∅ ∧ (∃n: ℕ, --n is the latest reachable from the start
+def max_reachable_node_n (A : εNFA alphabet ℕ) (n : ℕ) :=
     (∃s₁: ℕ, ∃x: List (Option alphabet), s₁ ∈ A.start ∧ A.IsPath s₁ n x)
     ∧
     ∀n': ℕ, (n' > n) → ¬(∃s₁: ℕ, ∃x: List (Option alphabet), s₁ ∈ A.start ∧ A.IsPath s₁ n' x)
-    ))
+
+def is_finite_automata (A : εNFA alphabet ℕ) :=
+    (A.start = ∅) ∨ (A.start ≠ ∅ ∧ (∃n: ℕ, max_reachable_node_n A n))
+
+lemma finite_iff_to_singular_finite (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_singular A):
+    is_finite_automata A ↔ is_finite_automata A' := by sorry
 
 def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {
     start  := { i }
@@ -310,11 +314,11 @@ def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {
 def is_trim (A' : εNFA alphabet ℕ) (i' j' k' : ℕ) :=
     ∃ (A : εNFA alphabet ℕ), A' = to_trim A i' j' k'
 
-lemma singular_finite_accepts_iff_trim_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hAsingular: is_singular A) (hAfinite: is_finite_automata A) (hhhhh: 1==1): -- to add - A' = trim(A, 1, 2, n)
+lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n: ℕ)
+(hAsingular: is_singular A) (hAfinite: is_finite_automata A)
+(hn_max: max_reachable_node_n A n) (hs_start: is_alone_in_set A.start s) (ha_accept: is_alone_in_set A.accept a)
+(hA'istrim: A' = to_trim A s a n):
     A.accepts = A'.accepts := by sorry
-
-
-
 
 def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) : RegularExpression alphabet :=
     if k==0 then
@@ -330,19 +334,102 @@ def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) 
 
 
 
-def regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression alphabet) (hr: r = regex_for_path_from_i_to_j_through_k A i j k) :
-    ∀x : List (Option alphabet), ((x.reduceOption ∈ r.matches') ↔ ((to_trim A i j k).IsPath i j x)) := by
+lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression alphabet) (hr: r = regex_for_path_from_i_to_j_through_k A i j k) :
+    ∀(x : List alphabet), ((x ∈ r.matches') ↔ (∃(x': List ((Option alphabet))), (x'.reduceOption = x) ∧ ((to_trim A i j k).IsPath i j x'))) := by
     sorry
 
 
 
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (r: RegularExpression alphabet), r.matches' = A.accepts) := by
+    let A' := to_singular A
+    have hA'tosinA: A' = to_singular A := by
+        simp_all only [A'] --todo: is simp_all allowed?
+    rw [accepts_iff_singular_accepts A A']
+    swap
+    simp_all only [A'] --todo: is simp_all allowed?
+    rw [finite_iff_to_singular_finite A A' hA'tosinA]
+
     rw [is_finite_automata]
-    rintro ( hnill | ⟨ hAStartNotEmpty, n, hnReachable, hGreaternUnreachable ⟩ )
+    rintro ( hnill | ⟨ hAStartNotEmpty, n, hnmax ⟩ )
     case inl =>
         use 0
-        simp only [dont_go_nowhere A hnill, RegularExpression.matches']
-
+        simp only [dont_go_nowhere A' hnill, RegularExpression.matches']
     case inr =>
+        have hA'singular: is_singular A' := by
+            simp_all only [ne_eq, A'] --todo: is simp_all allowed?
+            unfold to_singular
+            unfold is_singular
+            constructor
+            use 1 --todo: fix if to_singular changes
+            exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
+            use 2 --todo: fix if to_singular changes
+            exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
+        unfold is_singular at hA'singular
+        obtain ⟨ s, hs ⟩ := hA'singular.left
+        obtain ⟨ a, ha ⟩ := hA'singular.right
+        let A'' := to_trim A' s a n
+        have histrim: A'' = to_trim A' s a n := by
+            simp_all only [ne_eq, A', A''] --todo: is simp_all allowed?
+        have hA'finite: is_finite_automata A' := by
+            rw [is_finite_automata]
+            right
+            constructor
+            · exact hAStartNotEmpty
+            · use n
+        rw [singular_finite_accepts_iff_trim_accepts
+        A' A'' s a n
+        hA'singular hA'finite
+        hnmax hs ha
+        histrim]
+        let r' := regex_for_path_from_i_to_j_through_k A'' s a n
+        have hr: r' = regex_for_path_from_i_to_j_through_k A s a n := by
+            simp_all only [ne_eq, A', A'', r']
+            obtain ⟨left, right⟩ := hA'singular
+            obtain ⟨w, h⟩ := left
+            obtain ⟨w_1, h_1⟩ := right
+            rfl
+        have hgs: A''.start = {s} := by
+            simp_all only [ne_eq, A', A'', r']
+            obtain ⟨left, right⟩ := hA'singular
+            obtain ⟨w, h⟩ := left
+            obtain ⟨w_1, h_1⟩ := right
+            rfl
+        have hga: A''.accept = {a} := by
+            simp_all only [ne_eq, A', A'', r']
+            obtain ⟨left, right⟩ := hA'singular
+            obtain ⟨w, h⟩ := left
+            obtain ⟨w_1, h_1⟩ := right
+            rfl
+        use r'
+        rw [@Language.ext_iff]
+        intro x
+        rw [A''.mem_accepts_iff_exists_path]
+        rw [hgs, hga]
 
-        sorry
+        constructor
+        case mp =>
+            intro hmatch
+            use s
+            use a
+            let hreg := ((regex_is_path A' s a n r' hr) x).mp hmatch
+
+            obtain ⟨ x', ⟨ hx', hpath⟩ ⟩ := hreg
+
+            use x'
+            constructor
+            · exact mem_singleton s
+            constructor
+            · exact mem_singleton a
+            constructor
+            · exact hx'
+            rw [histrim]
+            exact hpath
+        case mpr =>
+            rintro ⟨ temps, tempa, tempx', htemps, htempa, htempx, hpath ⟩
+            let hreg := ((regex_is_path A' s a n r' hr) x).mpr
+            apply hreg
+            use tempx'
+            constructor
+            · exact htempx
+            subst htempx
+            simp_all only [ne_eq, mem_singleton_iff, A', A''] --todo: is simp_all allowed?

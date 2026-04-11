@@ -249,6 +249,21 @@ lemma accepts_iff_0mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' 
 lemma accepts_iff_1mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' = to_1mod2 A) :
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inr hA')
 
+def contains (A : εNFA α ℕ) (A' : εNFA α ℕ) :=
+    ∀ (q : ℕ), ∀ (σ: Option α), A'.step q σ ⊆ A.step q σ
+
+lemma path_if_contains (A : εNFA α ℕ) (A' : εNFA α ℕ) (h_contains: A.contains A')
+    (q₁ q₂ : ℕ) (x : List (Option α)) :
+    A'.IsPath q₁ q₂ x → A.IsPath q₁ q₂ x := by
+    intro h_path_in_A'
+    unfold contains at h_contains
+    induction h_path_in_A' with
+    | nil q => exact A.isPath_nil.mpr rfl
+    | cons t q₁ q₂ c tail h_step h_rest h_induction =>
+        constructor
+        · exact mem_preimage.mp (h_contains q₁ c h_step)
+        · exact h_induction
+
 end εNFA
 
 --------------------------
@@ -270,6 +285,7 @@ lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.acc
     by_contra!
     obtain ⟨ s, hsacc, hsevalx ⟩ := this
     rw [εNFA.eval] at hsevalx
+    -- NOAM
 
     --
     --
@@ -314,27 +330,22 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
         rw[@εNFA.mem_accepts_iff_exists_path] at hx
         obtain ⟨ s, a, x', hs, ha, hx', hApath⟩ := hx
         use ([none] ++ x' ++ [none])
-        constructor
-        subst hA' hx'
-        rfl
-        constructor
-        subst hA' hx'
-        rfl
-        constructor
-        subst hA' hx'
-        simp_all only [List.cons_append, List.nil_append, List.reduceOption_cons_of_none]
 
-        sorry
+        subst hA' hx'
+        refine ⟨ rfl, rfl, ?_, ?_ ⟩
+
+        simp_all only [List.cons_append, List.nil_append, List.reduceOption_cons_of_none, List.reduceOption_append]
+        simp [List.reduceOption_nil, List.append_nil]
+
         have hfirst: (to_singular A).IsPath 2 (2*s + 1) [none] := by
-            subst hA' hx'
             simp_all only [εNFA.isPath_singleton]
             unfold to_singular
             simp_all only [Nat.mod_self, Nat.reduceBEq, Bool.false_eq_true, ↓reduceIte, BEq.rfl, Bool.and_self]
             unfold εNFA.to_1mod2
             simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero, or_false,
               exists_eq_right]
+
         have hlast: (to_singular A).IsPath (2*a + 1) 4 [none] := by
-            subst hA' hx'
             simp_all only [εNFA.isPath_singleton]
             unfold to_singular
             simp_all only [Nat.mul_add_mod_self_left, Nat.mod_succ, BEq.rfl, ↓reduceIte, Bool.and_true,
@@ -346,9 +357,26 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
                 unfold εNFA.to_1mod2
                 simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero,
                   or_false, exists_eq_right]
-        --contains
 
-        sorry
+        have hmiddle: (to_singular A).IsPath (2*s + 1) (2*a + 1) x' := by
+            -- NOAM
+            have hcontains : (to_singular A).contains A.to_1mod2 := by
+                unfold εNFA.contains to_singular
+                intro q σ
+                simp
+                split_ifs
+                case pos => simp
+                case neg => simp
+                case pos => sorry
+                case neg => sorry
+
+            sorry
+
+        apply (to_singular A).isPath_append.mpr; use (2*a + 1)
+        refine ⟨ ?_, hlast ⟩
+
+        apply (to_singular A).isPath_append.mpr; use (2*s + 1)
+
     case mpr =>
         sorry
 
@@ -388,35 +416,37 @@ lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n
 
 
 def letters_to_or_regex (Letters: Finset alphabet): RegularExpression alphabet :=
-    fun f (σ: alphabet): RegularExpression alphabet := RegularExpression.char(σ)
-    Letters.fold (+) 0
+    let f := fun (σ: alphabet) => RegularExpression.char σ
+    let op := fun (a b : RegularExpression alphabet) => (a + b)
+    --Letters.fold (Std.Commutative op) RegularExpression.epsilon f
+    sorry
 
 
-
-
-def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) : RegularExpression alphabet :=
-    if k==0 then
-        let Letters: Fintype alphabet := { σ |  j ∈ A.step i (some σ) }
-        if i==j then
-            1 + letters_to_or_regex Letters
+def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) :
+    RegularExpression alphabet :=
+    if k = 0 then
+        --let Letters: Fintype alphabet := { σ |  j ∈ A.step i (some σ) }
+        if i = j then
+            0 --1 + letters_to_or_regex Letters
             ---{ x | ∃ S ∈ M.accept, ∃ (L : List (RegularExpression α)),
             ---(regex_comp L).rmatch x ∧ S ∈ M.eval L }
         else
-            letters_to_or_regex Letters
+            0 --letters_to_or_regex Letters
     else
-        let r := regex_for_path_from_i_to_j_through_k A
-        (r i j (k-1)) + ((r i k (k-1)) * (r k k (k-1)).star * (r k j (k-1)))
+        let r₁ := regex_for_path_from_i_to_j_through_k A i j (k-1)
+        let r₂ := regex_for_path_from_i_to_j_through_k A i k (k-1)
+        let r₃ := regex_for_path_from_i_to_j_through_k A k k (k-1)
+        let r₄ := regex_for_path_from_i_to_j_through_k A k j (k-1)
 
+        r₁ + (r₂ * r₃.star * r₄)
 
-
-
-
+termination_by k
+decreasing_by
+    all_goals omega
 
 lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression alphabet) (hr: r = regex_for_path_from_i_to_j_through_k A i j k) :
     ∀(x : List alphabet), ((x ∈ r.matches') ↔ (∃(x': List ((Option alphabet))), (x'.reduceOption = x) ∧ ((to_trim A i j k).IsPath i j x'))) := by
     sorry
-
-
 
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (r: RegularExpression alphabet), r.matches' = A.accepts) := by
     let A' := to_singular A
@@ -465,6 +495,7 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
             obtain ⟨left, right⟩ := hA'singular
             obtain ⟨w, h⟩ := left
             obtain ⟨w_1, h_1⟩ := right
+
             rfl
         have hgs: A''.start = {s} := by
             simp_all only [ne_eq, A', A'', r']

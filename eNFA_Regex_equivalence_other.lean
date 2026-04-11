@@ -257,6 +257,7 @@ end εNFA
 
 variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --TODO: change format
 
+--TODO: eliminate ==
 
 lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by
     unfold εNFA.accepts
@@ -266,13 +267,10 @@ lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.acc
     intro a
     simp_all only [Language.notMem_zero]
     simp only [Language.notMem_zero, imp_false]
-    have htemp: ∀ S ∈ A.accept, S ∉ A.eval x := by
-        intro a ha
-        unfold εNFA.eval
-        unfold εNFA.evalFrom
-        rw [hAempty]
+    by_contra!
+    obtain ⟨ s, hsacc, hsevalx ⟩ := this
+    rw [εNFA.eval] at hsevalx
 
-        sorry
     --
     --
     --
@@ -348,7 +346,7 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
                 unfold εNFA.to_1mod2
                 simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero,
                   or_false, exists_eq_right]
-
+        --contains
 
         sorry
     case mpr =>
@@ -388,14 +386,26 @@ lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n
 (hA'istrim: A' = to_trim A s a n):
     A.accepts = A'.accepts := by sorry
 
+
+def letters_to_or_regex (Letters: Finset alphabet): RegularExpression alphabet :=
+    fun f (σ: alphabet): RegularExpression alphabet := RegularExpression.char(σ)
+    Letters.fold (+) 0
+
+
+
+
 def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) : RegularExpression alphabet :=
     if k==0 then
+        let Letters: Fintype alphabet := { σ |  j ∈ A.step i (some σ) }
         if i==j then
-            0 --TODO: REAL REGEX
+            1 + letters_to_or_regex Letters
+            ---{ x | ∃ S ∈ M.accept, ∃ (L : List (RegularExpression α)),
+            ---(regex_comp L).rmatch x ∧ S ∈ M.eval L }
         else
-            0 --TODO: REAL REGEX
+            letters_to_or_regex Letters
     else
-        0 --TODO: REAL REGEX
+        let r := regex_for_path_from_i_to_j_through_k A
+        (r i j (k-1)) + ((r i k (k-1)) * (r k k (k-1)).star * (r k j (k-1)))
 
 
 
@@ -411,10 +421,10 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (r: RegularExpression alphabet), r.matches' = A.accepts) := by
     let A' := to_singular A
     have hA'tosinA: A' = to_singular A := by
-        simp_all only [A'] --todo: is simp_all allowed?
+        simp_all only [A']
     rw [accepts_iff_singular_accepts A A']
     swap
-    simp_all only [A'] --todo: is simp_all allowed?
+    simp_all only [A']
     rw [finite_iff_to_singular_finite A A' hA'tosinA]
 
     rw [is_finite_automata]
@@ -424,7 +434,7 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
         simp only [dont_go_nowhere A' hnill, RegularExpression.matches']
     case inr =>
         have hA'singular: is_singular A' := by
-            simp_all only [ne_eq, A'] --todo: is simp_all allowed?
+            simp_all only [ne_eq, A']
             unfold to_singular
             unfold is_singular
             constructor
@@ -437,7 +447,7 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
         obtain ⟨ a, ha ⟩ := hA'singular.right
         let A'' := to_trim A' s a n
         have histrim: A'' = to_trim A' s a n := by
-            simp_all only [ne_eq, A', A''] --todo: is simp_all allowed?
+            simp_all only [ne_eq, A', A'']
         have hA'finite: is_finite_automata A' := by
             rw [is_finite_automata]
             right
@@ -484,12 +494,7 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
             obtain ⟨ x', ⟨ hx', hpath⟩ ⟩ := hreg
 
             use x'
-            constructor
-            · exact mem_singleton s
-            constructor
-            · exact mem_singleton a
-            constructor
-            · exact hx'
+            refine ⟨ mem_singleton s, mem_singleton a, hx', ?_ ⟩
             rw [histrim]
             exact hpath
         case mpr =>

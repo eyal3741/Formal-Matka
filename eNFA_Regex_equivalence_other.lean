@@ -258,24 +258,43 @@ end εNFA
 variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --TODO: change format
 
 
-lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by sorry
+lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by
+    unfold εNFA.accepts
+    ext x
+    apply Iff.intro
+    swap
+    intro a
+    simp_all only [Language.notMem_zero]
+    simp only [Language.notMem_zero, imp_false]
+    have htemp: ∀ S ∈ A.accept, S ∉ A.eval x := by
+        intro a ha
+        unfold εNFA.eval
+        unfold εNFA.evalFrom
+        rw [hAempty]
+
+        sorry
+    --
+    --
+    --
+
+    sorry
 
 
 
 def to_singular (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
-    start  := { 1 }
-    accept := { 2 }
+    start  := { 2 }
+    accept := { 4 }
     step   := fun q c =>
-        if q > 4 then
-            { q' + 5 | q' ∈ (A.step (q - 5) c) }
-        else
-            if q == 1 && c == none then
-                { q' + 5 | q' ∈ A.start  }
+        if q % 2 == 1 then
+            if q ∈ (εNFA.to_1mod2 A).accept && c == none then
+                    (εNFA.to_1mod2 A).step q c ∪ { 4 }
             else
-                if q ∈ { q' + 5 | q' ∈ A.accept } && c == none then
-                    { 2 }
-                else
-                    ∅
+                (εNFA.to_1mod2 A).step q c
+        else
+            if q == 2 && c == none then
+                (εNFA.to_1mod2 A).start
+            else
+                ∅
     : εNFA alphabet ℕ
 }
 
@@ -284,7 +303,56 @@ def is_singular (A : εNFA alphabet ℕ) :=
     (∃s: ℕ, is_alone_in_set A.start s) ∧ (∃a: ℕ, is_alone_in_set A.accept a)
 
 lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_singular A) :
-    A.accepts = A'.accepts := by sorry
+    A.accepts = A'.accepts := by
+    rw [@Language.ext_iff]
+    intro x
+    rw [hA']
+    constructor
+    case mp =>
+        intro hx
+        rw[@εNFA.mem_accepts_iff_exists_path]
+        use 2
+        use 4
+        rw[@εNFA.mem_accepts_iff_exists_path] at hx
+        obtain ⟨ s, a, x', hs, ha, hx', hApath⟩ := hx
+        use ([none] ++ x' ++ [none])
+        constructor
+        subst hA' hx'
+        rfl
+        constructor
+        subst hA' hx'
+        rfl
+        constructor
+        subst hA' hx'
+        simp_all only [List.cons_append, List.nil_append, List.reduceOption_cons_of_none]
+
+        sorry
+        have hfirst: (to_singular A).IsPath 2 (2*s + 1) [none] := by
+            subst hA' hx'
+            simp_all only [εNFA.isPath_singleton]
+            unfold to_singular
+            simp_all only [Nat.mod_self, Nat.reduceBEq, Bool.false_eq_true, ↓reduceIte, BEq.rfl, Bool.and_self]
+            unfold εNFA.to_1mod2
+            simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero, or_false,
+              exists_eq_right]
+        have hlast: (to_singular A).IsPath (2*a + 1) 4 [none] := by
+            subst hA' hx'
+            simp_all only [εNFA.isPath_singleton]
+            unfold to_singular
+            simp_all only [Nat.mul_add_mod_self_left, Nat.mod_succ, BEq.rfl, ↓reduceIte, Bool.and_true,
+              decide_eq_true_eq, union_singleton]
+            split
+            next h => simp_all only [mem_insert_iff, true_or]
+            next h =>
+                absurd h
+                unfold εNFA.to_1mod2
+                simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero,
+                  or_false, exists_eq_right]
+
+
+        sorry
+    case mpr =>
+        sorry
 
 def max_reachable_node_n (A : εNFA alphabet ℕ) (n : ℕ) :=
     (∃s₁: ℕ, ∃x: List (Option alphabet), s₁ ∈ A.start ∧ A.IsPath s₁ n x)
@@ -323,7 +391,7 @@ lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n
 def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) : RegularExpression alphabet :=
     if k==0 then
         if i==j then
-            1
+            0 --TODO: REAL REGEX
         else
             0 --TODO: REAL REGEX
     else
@@ -360,9 +428,9 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
             unfold to_singular
             unfold is_singular
             constructor
-            use 1 --todo: fix if to_singular changes
-            exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
             use 2 --todo: fix if to_singular changes
+            exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
+            use 4 --todo: fix if to_singular changes
             exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
         unfold is_singular at hA'singular
         obtain ⟨ s, hs ⟩ := hA'singular.left

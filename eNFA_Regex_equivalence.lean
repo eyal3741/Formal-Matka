@@ -21,7 +21,7 @@ def to_0mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' | q' ∈ A.start  }
     accept := { 2*q' | q' ∈ A.accept }
     step   := fun q c =>
-        if q % 2 == 0 then
+        if q % 2 = 0 then
             { 2*q' | q' ∈ (A.step (q/2) c) }
         else
             ∅
@@ -32,7 +32,7 @@ def to_1mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' + 1 | q' ∈ A.start  }
     accept := { 2*q' + 1 | q' ∈ A.accept }
     step   := fun q c =>
-        if q % 2 == 1 then
+        if q % 2 = 1 then
             { 2*q' + 1 | q' ∈ (A.step ((q - 1)/2) c) }
         else
             ∅
@@ -1277,28 +1277,28 @@ lemma kstar_decompose_path_lemma_of_absolute_evil
                     exact A'.isPath_append.mpr ⟨ t, h_step, h_path_in_A' ⟩
 
                 case inr h =>
-                        obtain ⟨ n', qf', h_n', h_path_t_qf', h_qf'_accept, h_path_qf'_qf ⟩ := h
+                    obtain ⟨ n', qf', h_n', h_path_t_qf', h_qf'_accept, h_path_qf'_qf ⟩ := h
 
-                        have h_stepA : t ∈ A'.step qs (some c) := by
-                            simp [hA, εNFA_kstar, h_qs_not_1] at h_step
-                            exact h_step
+                    have h_stepA : t ∈ A'.step qs (some c) := by
+                        simp [hA, εNFA_kstar, h_qs_not_1] at h_step
+                        exact h_step
 
-                        use qf', [], [some c] ++ List.replicate n' none, [none], List.replicate (n - n' - 1) none
-                        have h_path_qs_qf' := A'.isPath_append.mpr ⟨ t, A'.isPath_singleton.mpr h_stepA, h_path_t_qf' ⟩
+                    use qf', [], [some c] ++ List.replicate n' none, [none], List.replicate (n - n' - 1) none
+                    have h_path_qs_qf' := A'.isPath_append.mpr ⟨ t, A'.isPath_singleton.mpr h_stepA, h_path_t_qf' ⟩
 
-                        refine ⟨ ?_, by simp, by simp, by simp, by simp, h_path_qs_qf', ?_ ⟩
-                        ·
-                            rw [h_n]
-                            have h_eq : n = n' + (1 + (n - n' - 1)) := by
-                                omega
-                            rw [h_eq, List.replicate_add, List.replicate_add]
-                            simp [List.append_assoc]
-                        ·
-                            right
-                            have : A.IsPath qf' 1 [none] := by
-                                apply A.isPath_singleton.mpr
-                                simp [hA, εNFA_kstar, h_qf'_accept]
-                            exact ⟨ rfl, h_qf'_accept, this, h_path_qf'_qf ⟩
+                    refine ⟨ ?_, by simp, by simp, by simp, by simp, h_path_qs_qf', ?_ ⟩
+                    ·
+                        rw [h_n]
+                        have h_eq : n = n' + (1 + (n - n' - 1)) := by
+                            omega
+                        rw [h_eq, List.replicate_add, List.replicate_add]
+                        simp [List.append_assoc]
+                    ·
+                        right
+                        have : A.IsPath qf' 1 [none] := by
+                            apply A.isPath_singleton.mpr
+                            simp [hA, εNFA_kstar, h_qf'_accept]
+                        exact ⟨ rfl, h_qf'_accept, this, h_path_qf'_qf ⟩
 
             case neg =>
                 /-
@@ -1519,7 +1519,7 @@ lemma kstar_obtain_first_word (A A' : εNFA α ℕ) (hA': A'.is_0mod2) (hA : A =
 To obtain a decomposition of a word in L(A) into a list of words in L(A') we'll use the following
 recursive lemma, and that concludes the second direction of the kstar proof.
 -/
-lemma kstar_word_list_decompisition
+lemma kstar_word_list_decomposition
     (A A' : εNFA α ℕ) (hA': A'.is_0mod2) (hA : A = εNFA_kstar A')
     (x : List α) (hx: x ∈ A.accepts) :
     ∃ (L : List (List α)), x = L.flatten ∧ ∀ y ∈ L, y ∈ A'.accepts := by
@@ -1531,7 +1531,7 @@ lemma kstar_word_list_decompisition
     case neg =>
         obtain ⟨ a, b, h_x_a_b, h_a_not_empty, h_a_in_A', h_b_in_A ⟩ :=
             A.kstar_obtain_first_word A' hA' hA x hx h_x_empty
-        obtain ⟨ L', h_L' ⟩ := A.kstar_word_list_decompisition A' hA' hA b h_b_in_A
+        obtain ⟨ L', h_L' ⟩ := A.kstar_word_list_decomposition A' hA' hA b h_b_in_A
         use [a] ++ L'
 
         simp [h_x_a_b, h_a_in_A', h_L']
@@ -1613,7 +1613,7 @@ lemma Star_Regex_to_εNFA (r : RegularExpression α) :
         by_cases h_x_empty: x ≠ []
         case neg => use []; tauto
         case pos =>
-            exact A.kstar_word_list_decompisition A' hA' rfl x h_x_in_A
+            exact A.kstar_word_list_decomposition A' hA' rfl x h_x_in_A
 
 
 theorem Regex_to_εNFA (r: RegularExpression α) : ∃ (A: εNFA α ℕ), r.matches' = A.accepts := by

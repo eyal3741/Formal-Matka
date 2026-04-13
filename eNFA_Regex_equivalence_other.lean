@@ -21,7 +21,7 @@ def to_0mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' | q' ∈ A.start  }
     accept := { 2*q' | q' ∈ A.accept }
     step   := fun q c =>
-        if q % 2 == 0 then
+        if q % 2 = 0 then
             { 2*q' | q' ∈ (A.step (q/2) c) }
         else
             ∅
@@ -32,7 +32,7 @@ def to_1mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' + 1 | q' ∈ A.start  }
     accept := { 2*q' + 1 | q' ∈ A.accept }
     step   := fun q c =>
-        if q % 2 == 1 then
+        if q % 2 = 1 then
             { 2*q' + 1 | q' ∈ (A.step ((q - 1)/2) c) }
         else
             ∅
@@ -272,8 +272,6 @@ end εNFA
 
 variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --TODO: change format
 
---TODO: eliminate ==
-
 lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by
     simp [Language.zero_def]
     rw [Set.eq_empty_iff_forall_notMem] at hAempty ⊢
@@ -287,13 +285,13 @@ def to_singular (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
     start  := { 2 }
     accept := { 4 }
     step   := fun q c =>
-        if q % 2 == 1 then
-            if q ∈ (εNFA.to_1mod2 A).accept && c == none then
+        if q % 2 = 1 then
+            if q ∈ (εNFA.to_1mod2 A).accept && c = none then
                     (εNFA.to_1mod2 A).step q c ∪ { 4 }
             else
                 (εNFA.to_1mod2 A).step q c
         else
-            if q == 2 && c == none then
+            if q = 2 && c = none then
                 (εNFA.to_1mod2 A).start
             else
                 ∅
@@ -304,67 +302,82 @@ def is_alone_in_set (set: Set ℕ) (n: ℕ):= set = { n }
 def is_singular (A : εNFA alphabet ℕ) :=
     (∃s: ℕ, is_alone_in_set A.start s) ∧ (∃a: ℕ, is_alone_in_set A.accept a)
 
+lemma to_singular_contains (A: εNFA alphabet ℕ): (to_singular A).contains A.to_1mod2 := by
+    unfold εNFA.contains
+    intro q σ
+    simp [to_singular, εNFA.to_1mod2]
+    split_ifs
+    all_goals simp only [subset_insert, subset_refl, empty_subset]
+
 lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_singular A) :
     A.accepts = A'.accepts := by
     rw [@Language.ext_iff]
     intro x
-    rw [hA']
     constructor
     case mp =>
-        intro hx
-        rw[@εNFA.mem_accepts_iff_exists_path]
-        use 2
-        use 4
-        rw[@εNFA.mem_accepts_iff_exists_path] at hx
-        obtain ⟨ s, a, x', hs, ha, hx', hApath⟩ := hx
-        use ([none] ++ x' ++ [none])
+        intro h_A_accepts_x
+        rw[@εNFA.mem_accepts_iff_exists_path] at h_A_accepts_x ⊢
 
-        subst hA' hx'
-        refine ⟨ rfl, rfl, ?_, ?_ ⟩
+        obtain ⟨ s, a, x', hs, ha, hx', hApath⟩ := h_A_accepts_x
+        use 2, 4, ([none] ++ x' ++ [none])
 
-        simp_all only [List.cons_append, List.nil_append, List.reduceOption_cons_of_none, List.reduceOption_append]
-        simp [List.reduceOption_nil, List.append_nil]
+        refine ⟨ by subst hA'; rfl, by subst hA'; rfl,
+            by simp only [List.nil_append, List.reduceOption_cons_of_none, List.reduceOption_append, List.reduceOption_nil, List.append_nil, hx']
+            , ?_ ⟩
 
-        have hfirst: (to_singular A).IsPath 2 (2*s + 1) [none] := by
-            simp_all only [εNFA.isPath_singleton]
-            unfold to_singular
-            simp_all only [Nat.mod_self, Nat.reduceBEq, Bool.false_eq_true, ↓reduceIte, BEq.rfl, Bool.and_self]
-            unfold εNFA.to_1mod2
-            simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero, or_false,
-              exists_eq_right]
+        have hfirst: A'.IsPath 2 (2*s + 1) [none] := by
+            subst hA'
+            simp [to_singular, εNFA.to_1mod2, hs]
 
-        have hlast: (to_singular A).IsPath (2*a + 1) 4 [none] := by
-            simp_all only [εNFA.isPath_singleton]
-            unfold to_singular
-            simp_all only [Nat.mul_add_mod_self_left, Nat.mod_succ, BEq.rfl, ↓reduceIte, Bool.and_true,
-              decide_eq_true_eq, union_singleton]
-            split
-            next h => simp_all only [mem_insert_iff, true_or]
-            next h =>
-                absurd h
-                unfold εNFA.to_1mod2
-                simp_all only [mem_setOf_eq, Nat.add_right_cancel_iff, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero,
-                  or_false, exists_eq_right]
+        have hlast: A'.IsPath (2*a + 1) 4 [none] := by
+            subst hA'
+            simp [to_singular, εNFA.to_1mod2, ha]
 
-        have hmiddle: (to_singular A).IsPath (2*s + 1) (2*a + 1) x' := by
-            have hcontains : (to_singular A).contains A.to_1mod2 := by
-                unfold εNFA.contains
-                intro q σ
-                simp [to_singular, εNFA.to_1mod2]
-                split_ifs
-                all_goals simp only [subset_insert, subset_refl, empty_subset]
-
-            apply εNFA.path_if_contains at hcontains
+        have hmiddle: A'.IsPath (2*s + 1) (2*a + 1) x' := by
+            subst hA'
             have h_A_0mod2_path := (A.path_iff_1mod2_path A.to_1mod2 s a (2*s + 1) (2*a + 1) x' rfl rfl rfl).mp hApath
+            have hcontains := to_singular_contains A
+            apply εNFA.path_if_contains at hcontains
             exact hcontains (2*s + 1) (2*a + 1) x' h_A_0mod2_path
 
-        apply (to_singular A).isPath_append.mpr; use (2*a + 1)
+        apply A'.isPath_append.mpr; use (2*a + 1)
         refine ⟨ ?_, hlast ⟩
 
-        apply (to_singular A).isPath_append.mpr; use (2*s + 1)
+        apply A'.isPath_append.mpr; use (2*s + 1)
 
     case mpr =>
-        sorry
+        intro h_A'_accepts_x
+        rw [A.accepts_iff_1mod2_accepts A.to_1mod2 rfl]
+
+        rw[@εNFA.mem_accepts_iff_exists_path] at h_A'_accepts_x ⊢
+        obtain ⟨ s', a', x', h_s'_start, h_a'_accept, h_x', hA'path ⟩ := h_A'_accepts_x
+
+        have h_s'_2: s' = 2 := by
+            subst hA'
+            simp [to_singular] at h_s'_start
+            exact h_s'_start
+
+        have h_a'_4: a' = 4 := by
+            subst hA'
+            simp [to_singular] at h_a'_accept
+            exact h_a'_accept
+
+        subst h_s'_2
+        clear h_s'_start
+
+        cases hA'path
+        case cons s _ y' h_step h_path_s_4 =>
+            simp [hA', to_singular] at h_step
+            obtain ⟨ h, h_s_start ⟩ := h_step
+            subst h
+
+            --clear h_s_start
+            induction h_path_s_4
+            case nil =>
+                subst h_a'_4
+                sorry
+            case cons =>
+                sorry
 
 def max_reachable_node_n (A : εNFA alphabet ℕ) (n : ℕ) :=
     (∃s₁: ℕ, ∃x: List (Option alphabet), s₁ ∈ A.start ∧ A.IsPath s₁ n x)
@@ -382,10 +395,10 @@ def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {
     accept := { j }
     step   := fun q c =>
         if j > k then
-            if q == j then
+            if q = j then
                 ∅
             else
-                { q' | q' ∈ (A.step q c) ∧ ((q' ≤ k) ∨ (q' == j)) }
+                { q' | q' ∈ (A.step q c) ∧ ((q' ≤ k) ∨ (q' = j)) }
         else
             { q' | q' ∈ (A.step q c) ∧ ((q' ≤ k)) }
     : εNFA alphabet ℕ

@@ -275,24 +275,12 @@ variable {alphabet : Type u} [Fintype alphabet] [DecidableEq alphabet]  --TODO: 
 --TODO: eliminate ==
 
 lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by
-    unfold εNFA.accepts
-    ext x
-    apply Iff.intro
-    swap
-    intro a
-    simp_all only [Language.notMem_zero]
-    simp only [Language.notMem_zero, imp_false]
+    simp [Language.zero_def]
+    rw [Set.eq_empty_iff_forall_notMem] at hAempty ⊢
+    intro x
     by_contra!
-    obtain ⟨ s, hsacc, hsevalx ⟩ := this
-    rw [εNFA.eval] at hsevalx
-    -- NOAM
-
-    --
-    --
-    --
-
-    sorry
-
+    obtain ⟨ s₁, _, _, h_s₁, _⟩ := A.mem_accepts_iff_exists_path.mp this
+    simp [hAempty] at h_s₁ -- contradiction
 
 
 def to_singular (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
@@ -359,18 +347,16 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
                   or_false, exists_eq_right]
 
         have hmiddle: (to_singular A).IsPath (2*s + 1) (2*a + 1) x' := by
-            -- NOAM
             have hcontains : (to_singular A).contains A.to_1mod2 := by
-                unfold εNFA.contains to_singular
+                unfold εNFA.contains
                 intro q σ
-                simp
+                simp [to_singular, εNFA.to_1mod2]
                 split_ifs
-                case pos => simp
-                case neg => simp
-                case pos => sorry
-                case neg => sorry
+                all_goals simp only [subset_insert, subset_refl, empty_subset]
 
-            sorry
+            apply εNFA.path_if_contains at hcontains
+            have h_A_0mod2_path := (A.path_iff_1mod2_path A.to_1mod2 s a (2*s + 1) (2*a + 1) x' rfl rfl rfl).mp hApath
+            exact hcontains (2*s + 1) (2*a + 1) x' h_A_0mod2_path
 
         apply (to_singular A).isPath_append.mpr; use (2*a + 1)
         refine ⟨ ?_, hlast ⟩

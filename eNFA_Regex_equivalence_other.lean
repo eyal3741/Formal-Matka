@@ -309,6 +309,8 @@ lemma to_singular_contains (A: εNFA alphabet ℕ): (to_singular A).contains A.t
     split_ifs
     all_goals simp only [subset_insert, subset_refl, empty_subset]
 
+
+
 lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_singular A) :
     A.accepts = A'.accepts := by
     rw [@Language.ext_iff]
@@ -363,7 +365,8 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
             exact h_a'_accept
 
         subst h_s'_2
-        clear h_s'_start
+        subst h_a'_4
+        clear h_s'_start h_a'_accept
 
         cases hA'path
         case cons s _ y' h_step h_path_s_4 =>
@@ -371,13 +374,62 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
             obtain ⟨ h, h_s_start ⟩ := h_step
             subst h
 
-            --clear h_s_start
-            induction h_path_s_4
-            case nil =>
-                subst h_a'_4
-                sorry
-            case cons =>
-                sorry
+            have first_transition_is_to_odd_state: s % 2 = 1:= by
+                have hmod: (A.to_1mod2).is_1mod2 := by
+                    exact⟨A,rfl⟩
+                exact εNFA.if_1mod2_qs_is_1mod2 A.to_1mod2 hmod s h_s_start
+
+
+
+            have h_temp: ∀ (q q': ℕ) (σ : Option alphabet), (q % 2 = 1) → (q' % 2 = 1) → (q' ∈ A'.step q σ )
+            → (q' ∈ A.to_1mod2.step q σ ) := by
+                intro q q' σ hq_odd hq'_odd hstep
+                subst hA'
+                simp [to_singular, hq_odd, hq'_odd] at hstep ⊢
+                by_cases hacc : q ∈ (A.to_1mod2).accept ∧ σ = none
+                · simp [hacc] at hstep ⊢
+                  rcases hstep with h | h
+                  · exfalso
+                    omega
+                  · exact h
+                · simp [hacc] at hstep ⊢
+                  exact hstep
+
+               --transition between odds in A' -> same transition in A1
+
+            --next step: path between odds in A' is odd
+            --next step: odd path in A' -> odd path in A1
+            have odd_step_in_1mod2_stays_odd :
+              ∀ (q q' : ℕ) (σ : Option alphabet),
+                q % 2 = 1 →
+                q' ∈ (A.to_1mod2).step q σ →
+                q' % 2 = 1 := by
+              intro q q' σ hq_odd hstep
+              sorry
+
+            have path_to_four :
+              ∀ {q : ℕ} {y : List (Option alphabet)},
+                q % 2 = 1 →
+                (to_singular A).IsPath q 4 y →
+                ∃ qf mid,
+                  qf ∈ (A.to_1mod2).accept ∧
+                  (A.to_1mod2).IsPath q qf mid ∧
+                  y = mid ++ [none] := by
+                  sorry
+
+            have h_path_s_4' : (to_singular A).IsPath s 4 y' := by
+                simpa [hA'] using h_path_s_4
+
+            obtain ⟨qf, mid, h_qf_accept, h_mid_path, h_y'_eq⟩ :=
+              path_to_four (q := s) (y := y') first_transition_is_to_odd_state h_path_s_4'
+
+            have h_mid : mid.reduceOption = x := by
+                simp at h_x'
+                rw [h_y'_eq, List.reduceOption_append] at h_x'
+                simpa using h_x'
+
+            use s, qf, mid
+
 
 def max_reachable_node_n (A : εNFA alphabet ℕ) (n : ℕ) :=
     (∃s₁: ℕ, ∃x: List (Option alphabet), s₁ ∈ A.start ∧ A.IsPath s₁ n x)

@@ -385,7 +385,7 @@ lemma accepts_iff_singular_accepts (A : εNFA alphabet ℕ) (A' : εNFA alphabet
             → (q' ∈ A.to_1mod2.step q σ ) := by
                 intro q q' σ hq_odd hq'_odd hstep
                 subst hA'
-                simp [to_singular, hq_odd, hq'_odd] at hstep ⊢
+                simp [to_singular, hq_odd] at hstep ⊢
                 by_cases hacc : q ∈ (A.to_1mod2).accept ∧ σ = none
                 · simp [hacc] at hstep ⊢
                   rcases hstep with h | h
@@ -465,24 +465,20 @@ lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n
 (hA'istrim: A' = to_trim A s a n):
     A.accepts = A'.accepts := by sorry
 
+def character_list_to_regex : List alphabet → RegularExpression alphabet
+    | .nil => 0
+    | .cons head tail => (RegularExpression.char head) + (character_list_to_regex tail)
 
-def letters_to_or_regex (Letters: Finset alphabet): RegularExpression alphabet :=
-    let f := fun (σ: alphabet) => RegularExpression.char σ
-    let op := fun (a b : RegularExpression alphabet) => (a + b)
-    --Letters.fold (Std.Commutative op) RegularExpression.epsilon f
-    sorry
-
-
+noncomputable
 def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) :
     RegularExpression alphabet :=
     if k = 0 then
-        --let Letters: Fintype alphabet := { σ |  j ∈ A.step i (some σ) }
+        let character_set: Finset alphabet := { σ |  j ∈ A.step i (some σ) }
+        let characters := character_set.toList
         if i = j then
-            0 --1 + letters_to_or_regex Letters
-            ---{ x | ∃ S ∈ M.accept, ∃ (L : List (RegularExpression α)),
-            ---(regex_comp L).rmatch x ∧ S ∈ M.eval L }
+            1 + character_list_to_regex characters
         else
-            0 --letters_to_or_regex Letters
+            character_list_to_regex characters
     else
         let r₁ := regex_for_path_from_i_to_j_through_k A i j (k-1)
         let r₂ := regex_for_path_from_i_to_j_through_k A i k (k-1)
@@ -541,13 +537,14 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
         hnmax hs ha
         histrim]
         let r' := regex_for_path_from_i_to_j_through_k A'' s a n
-        have hr: r' = regex_for_path_from_i_to_j_through_k A s a n := by
-            simp_all only [ne_eq, A', A'', r']
+        have hr: r' = regex_for_path_from_i_to_j_through_k A' s a n := by
+            subst A'
+            simp_all only [ne_eq, A'', r']
             obtain ⟨left, right⟩ := hA'singular
             obtain ⟨w, h⟩ := left
             obtain ⟨w_1, h_1⟩ := right
-
-            rfl
+            --rfl
+            sorry
         have hgs: A''.start = {s} := by
             simp_all only [ne_eq, A', A'', r']
             obtain ⟨left, right⟩ := hA'singular
@@ -587,4 +584,4 @@ theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : is_finite_automata A → (∃ (
             constructor
             · exact htempx
             subst htempx
-            simp_all only [ne_eq, mem_singleton_iff, A', A''] --todo: is simp_all allowed?
+            simp_all only [ne_eq, mem_singleton_iff, A', A'']

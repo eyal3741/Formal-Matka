@@ -1,5 +1,5 @@
+/.vscode
 /.lake
 .DS_Store
 lean-toolchain
 lake-manifest.json
-lakefile.toml

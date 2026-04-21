@@ -249,6 +249,24 @@ lemma accepts_iff_0mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' 
 lemma accepts_iff_1mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' = to_1mod2 A) :
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inr hA')
 
+lemma if_0mod2_1_is_invalid (A' : εNFA α ℕ) (hA': A'.is_0mod2):
+    1 ∉ A'.start ∧ 1 ∉ A'.accept ∧ ∀ (c : Option α), A'.step 1 c = ∅ := by
+    have h_1_notin_start : 1 ∉ A'.start := by
+        by_contra!
+        apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
+        contradiction
+    have h_1_notin_accept : 1 ∉ A'.accept := by
+        by_contra!
+        apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
+        contradiction
+    have h_1_notin_step : ∀ (c : Option α), A'.step 1 c = ∅ := by
+        intro c
+        by_contra!
+        obtain ⟨ t, ht ⟩ := this
+        apply if_0mod2_step_is_0mod2 A' hA' 1 at ht
+        omega
+    exact ⟨h_1_notin_start, h_1_notin_accept, h_1_notin_step⟩
+
 end εNFA
 
 
@@ -973,30 +991,19 @@ lemma kstar_accepts_contains (A A' : εNFA α ℕ) (hA: A = εNFA_kstar A') (hA'
         subst x' hA
         simp [List.reduceOption_append, h_x'']
 
-    -- TODO: move the following into a general lemma; q % 2 = 1 → q ∉ A'.start etc.
-    have h_1_notin_A': 1 ∉ A'.start ∧ 1 ∉ A'.accept := by
-        have h_1_notin_start : 1 ∉ A'.start := by
-            by_contra!
-            apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
-            contradiction
-        have h_1_notin_accept : 1 ∉ A'.accept := by
-            by_contra!
-            apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
-            contradiction
-        exact ⟨h_1_notin_start, h_1_notin_accept⟩
-
     have h_step_qs : qs ∈ A.step 1 none := by
         subst hA
-        simp [εNFA_kstar, h_1_notin_A']
+        simp [εNFA_kstar, A'.if_0mod2_1_is_invalid hA']
         right
         exact h_qs
 
     have h_path_1_1: A.IsPath 1 1 x' := by
         subst x'
         have h_path_1_qs: A.IsPath 1 qs [none] := by
-            simp [hA, εNFA_kstar, h_1_notin_A']
+            simp [hA, εNFA_kstar, A'.if_0mod2_1_is_invalid hA']
             right
             exact h_qs
+
         have h_path_qf_1: A.IsPath qf 1 [none] := by
             simp [hA, εNFA_kstar, h_qf]
 
@@ -1042,24 +1049,6 @@ lemma kstar_append (A A' : εNFA α ℕ) (y y₁ y₂ : List α)
         case right => rw [A.isPath_append]; use qs₂
 
     exact ⟨ h_qs₁, h_qf₂, h_y', h_full_path ⟩
-
-lemma if_0mod2_1_is_invalid (A' : εNFA α ℕ) (hA': A'.is_0mod2):
-    1 ∉ A'.start ∧ 1 ∉ A'.accept ∧ ∀ (c : Option α), A'.step 1 c = ∅ := by
-    have h_1_notin_start : 1 ∉ A'.start := by
-        by_contra!
-        apply if_0mod2_qs_is_0mod2 A' hA' 1 at this
-        contradiction
-    have h_1_notin_accept : 1 ∉ A'.accept := by
-        by_contra!
-        apply if_0mod2_qf_is_0mod2 A' hA' 1 at this
-        contradiction
-    have h_1_notin_step : ∀ (c : Option α), A'.step 1 c = ∅ := by
-        intro c
-        by_contra!
-        obtain ⟨ t, ht ⟩ := this
-        apply if_0mod2_step_is_0mod2 A' hA' 1 at ht
-        omega
-    exact ⟨h_1_notin_start, h_1_notin_accept, h_1_notin_step⟩
 
 /--
 The first complex thing we need for kstar's mpr direction, is to obtain a decomposition

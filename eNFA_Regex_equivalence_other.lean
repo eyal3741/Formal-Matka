@@ -493,8 +493,181 @@ def εNFA.max_reachable_node (A : εNFA alphabet ℕ) (n : ℕ) :=
 def εNFA.is_finite_automata (A : εNFA alphabet ℕ) :=
     (A.start = ∅) ∨ (∃n: ℕ, A.max_reachable_node n)
 
-lemma finite_iff_to_singular_finite (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = to_singular A):
+lemma if_1mod2_max_reachable_is_1mod2 (A : εNFA alphabet ℕ) (n: ℕ) (hA: A.is_1mod2) (h_n: A.max_reachable_node n) :
+    n % 2 = 1 := by
+    unfold εNFA.max_reachable_node at h_n
+    obtain ⟨ ⟨ s, x, ⟨ h_s_start, h_path ⟩ ⟩, _ ⟩ := h_n
+    apply A.if_1mod2_qs_is_1mod2 hA at h_s_start
+    apply A.if_1mod2_path_is_same_mod2 hA s n x at h_path
+    omega
+
+lemma finite_iff_1mod2_is_finite (A : εNFA alphabet ℕ) (A' : εNFA alphabet ℕ) (hA': A' = A.to_1mod2) :
     A.is_finite_automata ↔ A'.is_finite_automata := by
+    constructor
+    case mp =>
+        intro h_A_is_finite
+        unfold εNFA.is_finite_automata at h_A_is_finite ⊢
+        cases h_A_is_finite
+        case inl h_A_start_empty =>
+            left
+            simp [hA', εNFA.to_1mod2, h_A_start_empty]
+        case inr h_max_reachable =>
+            right
+            obtain ⟨ n, h_max_reachable ⟩ := h_max_reachable
+            use 2*n + 1
+            unfold εNFA.max_reachable_node at h_max_reachable ⊢
+            obtain ⟨ ⟨ s, x, ⟨ h_s_start, h_path ⟩ ⟩, h ⟩ := h_max_reachable
+            have h_A_path_iff_A'_path := (A.path_iff_1mod2_path A' s n (2*s + 1) (2*n + 1) x hA' rfl rfl).mp h_path
+            constructor
+            case left =>
+                use 2*s + 1, x
+                exact ⟨ by simp [hA', εNFA.to_1mod2, h_s_start], h_A_path_iff_A'_path ⟩
+            case right =>
+                intro k' h_k'
+                by_cases k' % 2 = 0
+                case pos h_k'_0mod2 =>
+                    simp
+                    intro s' h_s' x h_A'_path
+
+                    replace h_s' := A'.if_1mod2_qs_is_1mod2 ⟨A, hA'⟩ s' h_s'
+                    have := A'.if_1mod2_path_is_same_mod2 ⟨A, hA'⟩ s' k' x h_A'_path
+                    omega
+
+                case neg =>
+                    let k := (k' - 1)/2
+
+                    have h_k_greater: k > n := by omega
+                    have h_path_A := h k h_k_greater
+                    simp at h_path_A ⊢
+                    intro s' h_s' x
+
+                    simp [hA', εNFA.to_1mod2] at h_s'
+                    obtain ⟨ s, h_s_start, h_s ⟩ := h_s'
+                    replace h_path_A := h_path_A s h_s_start x
+                    replace h_k': k' = 2*k + 1 := by omega
+                    by_contra! h_path_A'
+                    have := (A.path_iff_1mod2_path A' s k s' k' x hA' (symm h_s) h_k').mpr h_path_A'
+                    contradiction
+
+    case mpr =>
+        intro h_A'_is_finite
+        unfold εNFA.is_finite_automata at h_A'_is_finite ⊢
+        cases h_A'_is_finite
+        case inl h_A'_start_empty =>
+            left
+            by_contra! h_A_start_nonempty
+            obtain ⟨ q, h_q ⟩ := nonempty_def.mp h_A_start_nonempty
+            clear h_A_start_nonempty
+            absurd h_A'_start_empty
+            push_neg
+            simp [nonempty_def]
+            use 2*q + 1
+            simp [hA', εNFA.to_1mod2, h_q]
+
+        case inr h_max_reachable =>
+            right
+            obtain ⟨n', h_max_reachable⟩ := h_max_reachable
+            have h_n'_1mod2 : n' % 2 = 1 := if_1mod2_max_reachable_is_1mod2 A' n' ⟨A, hA'⟩ h_max_reachable
+
+            let n := (n' - 1) / 2
+            use n
+            unfold εNFA.max_reachable_node at h_max_reachable ⊢
+            constructor
+            case left =>
+                obtain ⟨ ⟨ s', x, ⟨ h_s'_start, h_A'_path ⟩ ⟩, _ ⟩ := h_max_reachable
+                simp [hA', εNFA.to_1mod2] at h_s'_start
+                obtain ⟨s, h_s ⟩ := h_s'_start
+                use s, x
+
+                refine ⟨ h_s.left, ?_ ⟩
+                have := A.path_iff_1mod2_path A' s n s' n' x hA' (symm h_s.right) (by omega)
+                exact this.mpr h_A'_path
+
+            case right =>
+                obtain ⟨ ⟨_ ⟩, h ⟩ := h_max_reachable
+                intro k h_k
+                let k' := k*2 + 1
+                simp
+                intro s h_s x h_path_A
+                have := h k' (by omega)
+                absurd this
+
+                let s' := s*2 + 1
+                have h_s'_start: s' ∈ A'.start := by
+                    simp [hA', εNFA.to_1mod2, s']
+                    use s
+                    exact ⟨h_s, by omega⟩
+
+                use s', x
+                refine ⟨ h_s'_start, ?_ ⟩
+                have := A.path_iff_1mod2_path A' s k s' k' x hA' (by omega) (by omega)
+                exact this.mp h_path_A
+
+lemma if_singular_1mod2_path (A A' : εNFA alphabet ℕ) (qs qf : ℕ) (hA': A' = to_singular A)
+    (h_qs: qs % 2 = 1) (h_qf: qf % 2 = 1) (x: List (Option alphabet)):
+    A'.IsPath qs qf x ↔ A.to_1mod2.IsPath qs qf x := by
+    constructor
+    case mp =>
+        intro h_A'_path
+        induction h_A'_path
+        case nil => simp only [εNFA.isPath_nil]
+        case cons t qs qf c tail h_step h_path h_induction =>
+            have h_t : t % 2 = 1 := by
+                clear h_induction
+                by_contra!
+                simp [hA', to_singular, h_qs] at h_step
+                split_ifs at h_step
+                case pos h_c_none =>
+                    simp at h_step
+                    cases h_step
+                    case inl h_t_singular =>
+                        replace h_c_none := h_c_none.right
+                        subst h_c_none
+
+                        have h_t_step :∀ (c: Option alphabet), A'.step t c = ∅ := by
+                            simp [h_t_singular, hA', to_singular, SingularAccept, SingularStart]
+
+                        cases h_path
+                        case nil => contradiction
+                        case cons t' c tail' h_step' _ =>
+                            replace h_t_step := h_t_step c
+                            simp [h_t_step] at h_step' -- contradiction
+
+                    case inr h_step =>
+                        have := A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ qs t c h_step
+                        omega
+
+                case neg =>
+                    have := A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ qs t c h_step
+                    omega
+
+            replace h_step : t ∈ A.to_1mod2.step qs c := by
+                simp [hA', to_singular, h_qs, SingularAccept, SingularStart] at h_step
+                split_ifs at h_step
+                case pos =>
+                    simp at h_step
+                    cases h_step
+                    case inl => omega
+                    case inr h_step=>  exact h_step
+                case neg => exact h_step
+
+            apply A.to_1mod2.isPath_singleton.mpr at h_step
+            have := h_induction h_t h_qf
+            exact A.to_1mod2.isPath_append.mpr ⟨ t, h_step, this ⟩
+
+    case mpr =>
+        intro h_A1mod2_path
+
+        have h_A'_contains_A_1mod2 : A'.contains A.to_1mod2 := by
+            subst hA'
+            exact to_singular_contains A
+
+        exact A'.path_if_contains A.to_1mod2 h_A'_contains_A_1mod2 qs qf x h_A1mod2_path
+
+
+lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_singular A):
+    A.is_finite_automata ↔ A'.is_finite_automata := by
+    rw [finite_iff_1mod2_is_finite A A.to_1mod2 rfl]
 
     unfold εNFA.is_finite_automata
     constructor
@@ -502,8 +675,6 @@ lemma finite_iff_to_singular_finite (A : εNFA alphabet ℕ) (A' : εNFA alphabe
         rintro (h_start_empty | h_max_reachable)
         case inl =>
             right
-            replace h_start_empty : A.to_1mod2.start = ∅ := by
-                simp [εNFA.to_1mod2, h_start_empty]
 
             use SingularStart
             unfold εNFA.max_reachable_node
@@ -533,32 +704,28 @@ lemma finite_iff_to_singular_finite (A : εNFA alphabet ℕ) (A' : εNFA alphabe
             unfold εNFA.max_reachable_node at h_n ⊢
 
             obtain ⟨ ⟨ q, x, h_q_start, h_path_q_n_x ⟩, h_n_max ⟩ := h_n
-            let q₂ := 2*q + 1
-            let n₂ := 2*n + 1
-            rw [A.path_iff_1mod2_path A.to_1mod2 q n q₂ n₂ x] at h_path_q_n_x
 
             have h_A'_contains_A_1mod2 := to_singular_contains A
             rw[← hA'] at h_A'_contains_A_1mod2
 
             by_cases n > SingularStart
             case pos =>
-                use n₂
+                use n
                 constructor
                 case left =>
                     use SingularStart, [none] ++ x
                     refine ⟨ by simp [hA', to_singular], ?_ ⟩
-                    have h_step: q₂ ∈ A'.step SingularStart none := by
-                        simp [hA', to_singular, SingularStart, εNFA.to_1mod2, q₂, h_q_start]
+                    apply A'.path_if_contains A.to_1mod2 h_A'_contains_A_1mod2 at h_path_q_n_x
+
+                    have h_step: q ∈ A'.step SingularStart none := by
+                        simp [hA', to_singular, SingularStart, h_q_start]
+
                     apply A'.isPath_singleton.mpr at h_step
-
-                    have := A'.path_if_contains A.to_1mod2 h_A'_contains_A_1mod2 q₂ n₂ x h_path_q_n_x
-
-                    exact A'.isPath_append.mpr ⟨ q₂, h_step, this ⟩
+                    exact A'.isPath_append.mpr ⟨ q, h_step, h_path_q_n_x ⟩
 
                 case right =>
                     intro n' h_n'
 
-                    --replace h_n_max := h_n_max n' (by omega)
                     simp at h_n_max ⊢
                     intro s' h_s' x
 
@@ -576,20 +743,79 @@ lemma finite_iff_to_singular_finite (A : εNFA alphabet ℕ) (A' : εNFA alphabe
 
                         absurd h_n_max
                         simp
-                        simp [εNFA.to_1mod2] at h_t_start
-                        obtain ⟨ t, h_t'_start, h_t ⟩ := h_t_start
+                        use n'
+                        have : n' > n := by omega
+                        simp [this]
+                        clear this
 
-                        sorry
+                        use t'
+
+                        refine ⟨ h_t_start, ?_ ⟩
+                        use tail
+                        by_cases h_tail_empty: tail = []
+                        case pos =>
+                            subst h_tail_empty
+                            simp at h_path ⊢
+                            exact h_path
+                        case neg =>
+                            have h_t' : t' % 2 = 1 := A.to_1mod2.if_1mod2_qs_is_1mod2 ⟨A, rfl⟩ t' h_t_start
+                            have h_n' : n' % 2 = 1 := by
+                                clear h_step h_n_max h_t_start
+                                induction h_path
+                                case nil => omega
+                                case cons t t' n' c tail' h_step h_path h_induction =>
+                                    by_cases h_tail'_empty: tail' = []
+                                    case pos =>
+                                        subst h_tail'_empty
+                                        simp at h_path
+                                        subst h_path
+                                        have : t ≠ SingularAccept := by
+                                            have : SingularStart > SingularAccept := by
+                                                simp [SingularStart, SingularAccept]
+                                            omega
+                                        simp [hA', to_singular, h_t'] at h_step
+                                        split_ifs at h_step
+                                        case pos =>
+                                            simp [this] at h_step
+                                            exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ t' t c h_step).right
+                                        case neg =>
+                                            exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ t' t c h_step).right
+
+                                    case neg =>
+                                        apply h_induction h_n' h_tail'_empty
+                                        simp [hA', to_singular, h_t'] at h_step
+                                        split_ifs at h_step
+                                        case pos h_accept =>
+                                            replace h_accept := h_accept.left
+                                            simp at h_step
+                                            cases h_step
+                                            case inl h_t_accept =>
+                                                subst h_t_accept
+                                                cases h_path
+                                                case nil => contradiction
+                                                case cons u c _ h_step _ =>
+                                                    simp [hA', to_singular, SingularAccept, SingularStart] at h_step -- contradiction
+
+                                            case inr h_step =>
+                                                exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ t' t c h_step).right
+                                        case neg =>
+                                            exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ t' t c h_step).right
+
+                            exact (if_singular_1mod2_path A A' t' n' hA' h_t' h_n' tail).mp h_path
             case neg =>
                 use SingularStart
                 constructor
                 case left =>
                     use SingularStart, []
                     simp [hA', to_singular]
-                case right =>
+                case right  h_n_less =>
+                    simp at h_n_less
                     intro n' h_n'
-                    by_contra!
-                    absurd h_n_max
+                    have : n' > n := by omega
+                    have := h_n_max n' this
+
+                    rintro ⟨ q, x, h_q_start, h_A'_path ⟩
+
                     -- todo...
                     sorry
     case mpr =>

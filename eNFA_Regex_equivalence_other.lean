@@ -664,6 +664,44 @@ lemma if_singular_1mod2_path (A A' : εNFA alphabet ℕ) (qs qf : ℕ) (hA': A' 
 
         exact A'.path_if_contains A.to_1mod2 h_A'_contains_A_1mod2 qs qf x h_A1mod2_path
 
+lemma singular_path_from_odd_ends_odd
+    (A A' : εNFA alphabet ℕ) (q qf : ℕ) (y : List (Option alphabet))
+    (hA' : A' = to_singular A)
+    (h_q_odd : q % 2 = 1)
+    (h_qf_gt : qf > SingularStart)
+    (h_path : A'.IsPath q qf y) :
+    qf % 2 = 1 := by
+  induction h_path
+  · omega
+  · rename_i t q qf c tail h_step h_rest ih
+    by_cases h_tail_empty : tail = []
+    · subst h_tail_empty
+      simp at h_rest
+      subst h_rest
+      have h_t_ne_zero : t ≠ SingularAccept := by
+        simp [SingularAccept]
+        omega
+
+      simp [hA', to_singular, h_q_odd, SingularAccept, SingularStart] at h_step
+      split_ifs at h_step
+      · simp [h_t_ne_zero] at h_step
+        exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step).right
+      · exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step).right
+    · have h_t_odd : t % 2 = 1 := by
+        simp [hA', to_singular, h_q_odd] at h_step
+        split_ifs at h_step
+        · rcases h_step with h_zero | h_step1
+          · subst h_zero
+            cases h_rest with
+            | nil => contradiction
+            | cons =>
+                rename_i u d tail' hstep_bad hpath_bad
+                simp [hA', to_singular, SingularAccept, SingularStart] at hstep_bad
+          · exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step1).right
+        · exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step).right
+      exact ih h_t_odd h_qf_gt
+
+
 
 lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_singular A):
     A.is_finite_automata ↔ A'.is_finite_automata := by
@@ -814,10 +852,33 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
                     have : n' > n := by omega
                     have := h_n_max n' this
 
-                    rintro ⟨ q, x, h_q_start, h_A'_path ⟩
 
-                    -- todo...
-                    sorry
+                    have h_not_reach : ¬ ∃ s₁ x, s₁ ∈ A.to_1mod2.start ∧ A.to_1mod2.IsPath s₁ n' x := by
+                        exact h_n_max n' (by omega)
+
+                    rintro ⟨ q, x, h_q_start, h_A'_path ⟩
+                    have h_q : q = SingularStart := by
+                        simp [hA', to_singular] at h_q_start
+                        exact h_q_start
+                    subst h_q
+                    cases h_A'_path with
+                    | nil =>
+                        omega
+                    | cons =>
+                        rename_i t' σ tail hstep hpath
+                        have h_t_start : t' ∈ A.to_1mod2.start := by
+                            simp [hA', to_singular, SingularStart] at hstep
+                            exact hstep.2
+                        have h_t_odd : t' % 2 = 1 :=
+                            A.to_1mod2.if_1mod2_qs_is_1mod2 ⟨A, rfl⟩ t' h_t_start
+                        have h_n'_odd : n' % 2 = 1 := by
+                             exact singular_path_from_odd_ends_odd A A' t' n' tail hA' h_t_odd h_n' hpath
+                        have h_path_1mod2 : A.to_1mod2.IsPath t' n' tail :=
+                            (if_singular_1mod2_path A A' t' n' hA' h_t_odd h_n'_odd tail).mp hpath
+
+                        exact h_not_reach ⟨ t', tail, h_t_start, h_path_1mod2 ⟩
+
+
     case mpr =>
         sorry
 

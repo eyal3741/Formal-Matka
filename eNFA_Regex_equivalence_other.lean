@@ -880,6 +880,57 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
 
 
     case mpr =>
+        rintro (h_start_empty | h_max_reachable)
+        case inl =>
+            exfalso
+            rw [hA'] at h_start_empty
+            simp [to_singular] at h_start_empty
+        case inr =>
+            by_cases h_start_empty : A.to_1mod2.start = ∅
+            case pos =>
+                exact Or.inl h_start_empty
+            case neg =>
+                right
+                obtain ⟨n, h_n⟩ := h_max_reachable
+                unfold εNFA.max_reachable_node at h_n ⊢
+                obtain ⟨h_n_reachable, h_n_max⟩ := h_n
+                obtain ⟨s, x, h_s_start, h_path⟩ := h_n_reachable
+                have h_bound :
+                ∀ k s x, s ∈ A.to_1mod2.start → A.to_1mod2.IsPath s k x → k ≤ n := by
+                    intro k s x h_s_start h_path_1mod2
+                    by_contra h_not_le
+                    have hk_gt : k > n := by omega
+                    have h_step_from_singular : s ∈ A'.step SingularStart none := by
+                        simp [hA', to_singular, SingularStart, h_s_start]
+                    have h_singleton : A'.IsPath SingularStart s [none] := by
+                        apply A'.isPath_singleton.mpr
+                        exact h_step_from_singular
+                    have h_path_in_A' : A'.IsPath s k x := by
+                        exact A'.path_if_contains A.to_1mod2 h_A'_contains_A_1mod2 s k x h_path_1mod2
+                    have h_reach_k_in_A' : A'.IsPath SingularStart k ([none] ++ x) := by
+                        exact A'.isPath_append.mpr ⟨s, h_singleton, h_path_in_A'⟩
+                    have h_not_reach := h_n_max k hk_gt
+                    apply h_not_reach
+                    use SingularStart, [none] ++ x
+                    constructor
+                    · simp [hA', to_singular]
+                    · exact h_reach_k_in_A'
+                have h_nonempty : ∃ s, s ∈ A.to_1mod2.start := by
+                    by_contra h_no_s
+                    apply h_start_empty
+                    rw [Set.eq_empty_iff_forall_notMem]
+                    intro s hs
+                    exact h_no_s ⟨s, hs⟩
+                obtain ⟨s, h_s_start⟩ := h_nonempty
+                have h_some_reachable : ∃ s₁ x, s₁ ∈ A.to_1mod2.start ∧ A.to_1mod2.IsPath s₁ s x := by
+                    use s, []
+                    refine ⟨h_s_start, ?_⟩
+                    exact (A.to_1mod2.isPath_nil).mpr rfl
+
+
+
+
+
         sorry
 
 def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {

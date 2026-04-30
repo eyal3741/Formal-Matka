@@ -682,7 +682,7 @@ lemma singular_path_from_odd_ends_odd
         simp [SingularAccept]
         omega
 
-      simp [hA', to_singular, h_q_odd, SingularAccept, SingularStart] at h_step
+      simp [hA', to_singular, h_q_odd, SingularAccept, SingularStart] at h_step h_t_ne_zero
       split_ifs at h_step
       · simp [h_t_ne_zero] at h_step
         exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step).right
@@ -700,7 +700,6 @@ lemma singular_path_from_odd_ends_odd
           · exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step1).right
         · exact (A.to_1mod2.if_1mod2_step_is_1mod2 ⟨A, rfl⟩ q t c h_step).right
       exact ih h_t_odd h_qf_gt
-
 
 
 lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_singular A):
@@ -849,9 +848,6 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
                 case right  h_n_less =>
                     simp at h_n_less
                     intro n' h_n'
-                    have : n' > n := by omega
-                    have := h_n_max n' this
-
 
                     have h_not_reach : ¬ ∃ s₁ x, s₁ ∈ A.to_1mod2.start ∧ A.to_1mod2.IsPath s₁ n' x := by
                         exact h_n_max n' (by omega)
@@ -878,7 +874,6 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
 
                         exact h_not_reach ⟨ t', tail, h_t_start, h_path_1mod2 ⟩
 
-
     case mpr =>
         rintro (h_start_empty | h_max_reachable)
         case inl =>
@@ -886,6 +881,9 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
             rw [hA'] at h_start_empty
             simp [to_singular] at h_start_empty
         case inr =>
+            have h_A'_contains_A_1mod2 := to_singular_contains A
+            rw[← hA'] at h_A'_contains_A_1mod2
+
             by_cases h_start_empty : A.to_1mod2.start = ∅
             case pos =>
                 exact Or.inl h_start_empty
@@ -926,12 +924,7 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
                     use s, []
                     refine ⟨h_s_start, ?_⟩
                     exact (A.to_1mod2.isPath_nil).mpr rfl
-
-
-
-
-
-        sorry
+                sorry -- TODO: HARRY
 
 def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {
     start  := { i }
@@ -954,7 +947,7 @@ lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n
 (hAsingular: is_singular A) (hAfinite: A.is_finite_automata)
 (hn_max: A.max_reachable_node n) (hs_start: is_alone_in_set A.start s) (ha_accept: is_alone_in_set A.accept a)
 (hA'istrim: A' = to_trim A s a n):
-    A.accepts = A'.accepts := by sorry
+    A.accepts = A'.accepts := by sorry -- TODO: EYAL
 
 def character_list_to_regex : List alphabet → RegularExpression alphabet
     | .nil => 0
@@ -966,7 +959,7 @@ def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) 
     if k = 0 then
         let character_set: Finset alphabet := { σ |  j ∈ A.step i (some σ) }
         let characters := character_set.toList
-        if i = j then
+        if i = j ∨ j ∈ A.step i none then
             1 + character_list_to_regex characters
         else
             character_list_to_regex characters

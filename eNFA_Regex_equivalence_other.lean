@@ -920,11 +920,42 @@ lemma finite_iff_to_singular_finite (A A' : εNFA alphabet ℕ) (hA': A' = to_si
                     intro s hs
                     exact h_no_s ⟨s, hs⟩
                 obtain ⟨s, h_s_start⟩ := h_nonempty
-                have h_some_reachable : ∃ s₁ x, s₁ ∈ A.to_1mod2.start ∧ A.to_1mod2.IsPath s₁ s x := by
-                    use s, []
-                    refine ⟨h_s_start, ?_⟩
-                    exact (A.to_1mod2.isPath_nil).mpr rfl
-                sorry -- TODO: HARRY
+
+
+                let R : ℕ → Prop :=
+                    fun k => ∃ s₁ x,
+                        s₁ ∈ A.to_1mod2.start ∧
+                        A.to_1mod2.IsPath s₁ k x
+
+                have hR_nonempty_bounded : ∃ k ≤ n, R k := by
+                    use s
+                    constructor
+                    · exact h_bound s s [] h_s_start ((A.to_1mod2.isPath_nil).mpr rfl)
+                    · unfold R
+                      use s, []
+                      exact ⟨h_s_start, (A.to_1mod2.isPath_nil).mpr rfl⟩
+
+                let m := Nat.findGreatest R n
+
+                use m
+
+                constructor
+                · unfold m
+                  obtain ⟨k, hk_le_n, hk_R⟩ := hR_nonempty_bounded
+                  exact Nat.findGreatest_spec hk_le_n hk_R
+
+                · intro k hk
+                  by_contra h_reach_k
+
+                  have hk_le_n : k ≤ n := by
+                    obtain ⟨s₁, x, h_s₁_start, h_path⟩ := h_reach_k
+                    exact h_bound k s₁ x h_s₁_start h_path
+
+                  have h_not_reach_k : ¬ R k := by
+                    unfold m at hk
+                    exact Nat.findGreatest_is_greatest hk hk_le_n
+
+                  exact h_not_reach_k h_reach_k
 
 def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {
     start  := { i }

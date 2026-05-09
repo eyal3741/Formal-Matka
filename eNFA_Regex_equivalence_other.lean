@@ -281,8 +281,8 @@ lemma dont_go_nowhere (A : εNFA alphabet ℕ) (hAempty : A.start = ∅) : A.acc
     simp [hAempty] at h_s₁ -- contradiction
 
 
-def SingularStart  := 4
-def SingularAccept := 2
+def SingularStart  := 2
+def SingularAccept := 0
 
 def to_singular (A : εNFA alphabet ℕ) : εNFA alphabet ℕ := {
     start  := { SingularStart }
@@ -1070,15 +1070,19 @@ lemma regex_for_path_contains_ik (A : εNFA alphabet ℕ) (i j k k' : ℕ) (h_k'
     split_ifs
     case pos h_k_j =>
         have h_k'_j: k' < j := by omega
-        simp [h_k'_j] at h_step ⊢
-        cases h_step
-        case inl h_t_k' =>
+        simp
+        split_ifs at h_step
+        case pos h_k'_less =>
             left
-            simp [h_t_k']
+            simp_all
+            cases h_step
+            case inl h => simp [h.left]; omega
+            case inr h => simp [h.left]; omega
+        case neg h_k'_more =>
+            simp at h_step
+            left
+            simp [h_step]
             omega
-        case inr h_t_j =>
-            right
-            exact h_t_j
     case neg h_k_j =>
         simp at h_k_j
         split_ifs at h_step
@@ -1106,15 +1110,19 @@ lemma regex_for_path_contains_kk (A : εNFA alphabet ℕ) (i j k k' : ℕ) (h_k'
     split_ifs
     case pos h_k_j =>
         have h_k'_j: k' < j := by omega
-        simp [h_k'_j] at h_step ⊢
-        cases h_step
-        case inl h_t_k' =>
+        simp
+        split_ifs at h_step
+        case pos h_k'_less =>
             left
-            simp [h_t_k']
+            simp_all
+            cases h_step
+            case inl h => simp [h.left]; omega
+            case inr h => simp [h.left]; omega
+        case neg h_k'_more =>
+            simp at h_step
+            left
+            simp [h_step]
             omega
-        case inr h_t_j =>
-            right
-            exact h_t_j
     case neg h_k_j =>
         simp at h_k_j
         split_ifs at h_step
@@ -1132,31 +1140,23 @@ lemma regex_for_path_contains_kk (A : εNFA alphabet ℕ) (i j k k' : ℕ) (h_k'
             simp [h_step.left]
             omega
 
-lemma regex_for_path_kk_star_is_path_in_kk (A : εNFA alphabet ℕ) (k : ℕ) (L: List (List (Option alphabet))) :
-    ∀ (y : List (Option alphabet)), (y ∈ L → A.IsPath k k y) → A.IsPath k k L.flatten := by
-    induction L
+lemma regex_for_path_kk_star_is_path_in_kk (A : εNFA alphabet ℕ) (k : ℕ) (L': List (List (Option alphabet))) :
+    (∀ (x' : List (Option alphabet)), (x' ∈ L' → A.IsPath k k x')) → A.IsPath k k L'.flatten := by
+    intro h_y
+
+    induction L'
     case nil =>
-        intro y h_y_in_L
         simp only [List.flatten_nil, εNFA.isPath_nil]
     case cons head tail h_induction =>
-        simp only [List.flatten_cons]
+        have h_tail : (∀ y' ∈ tail, A.IsPath k k y') := by
+            simp at h_y
+            exact h_y.right
+        apply h_induction at h_tail
 
+        simp only [List.flatten_cons]
         apply A.isPath_append.mpr
         use k
-        constructor
-        case left =>
-
-        case right =>
-        by_cases y = head
-        case pos h_y_head =>
-            subst h_y_head
-            simp at h_y_in_L
-            apply A.isPath_append.mpr
-            use k
-            simp [h_y_in_L]
-            apply h_induction
-
-        sorry
+        exact ⟨ by simp [h_y], h_tail ⟩
 
 lemma regex_for_path_contains_kj (A : εNFA alphabet ℕ) (i j k k' : ℕ) (h_k' : k' ≤ k) :
     (to_trim A i j k).contains (to_trim A k j k') := by
@@ -1257,7 +1257,7 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
         case neg h_k_not_0 =>
             let rᵢⱼ := regex_for_path_from_i_to_j_through_k A i j (k - 1)
             let rᵢₖ := regex_for_path_from_i_to_j_through_k A i k (k - 1)
-            let rₖₖ := (regex_for_path_from_i_to_j_through_k A k k (k - 1)).star
+            let rₖₖ := (regex_for_path_from_i_to_j_through_k A k k (k - 1)) -- later: rₖₖ.star
             let rₖⱼ := regex_for_path_from_i_to_j_through_k A k j (k - 1)
 
             simp at h_r_matches_x
@@ -1280,37 +1280,37 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
 
                 simp [Language.kstar_def] at h_xₖₖ
                 obtain ⟨ L, h_L, h_xₖₖ ⟩ := h_xₖₖ
-
-                induction L
-                case nil =>
-                    simp at h_L
-                    simp [h_L] at h_x
-
-                    use xᵢₖ' ++ xₖⱼ'
-
-                    simp [symm h_xᵢₖ', symm h_xₖⱼ'] at h_x
-                    simp [List.reduceOption_append, h_x]
-
-                    have h_containsᵢₖ := regex_for_path_contains_ik A i j k (k-1) (by omega)
-                    have h_containsₖⱼ := regex_for_path_contains_kj A i j k (k-1) (by omega)
-                    have h_path_ik := εNFA.path_if_contains (to_trim A i j k) (to_trim A i k (k-1)) h_containsᵢₖ i k xᵢₖ' h_inductionᵢₖ
-                    have h_path_kj := εNFA.path_if_contains (to_trim A i j k) (to_trim A k j (k-1)) h_containsₖⱼ k j xₖⱼ' h_inductionₖⱼ
-
-                    apply (to_trim A i j k).isPath_append.mpr
-                    use k
-
-                case cons y tail h_induction =>
+                have : ∃ (L' : List (List (Option alphabet))), L'.flatten.reduceOption = L.flatten ∧
+                    (∀ x' ∈ L', (to_trim A k k (k - 1)).IsPath k k x') := by
                     sorry
 
-                obtain ⟨ xₖₖ', h_xₖₖ', h_inductionₖₖ ⟩ := (regex_is_path A k k (k-1) rₖₖ rfl xₖₖ).mp h_xₖₖ
+                obtain ⟨ L', h_L'_L, h_L' ⟩ := this
+                have := regex_for_path_kk_star_is_path_in_kk (to_trim A k k (k - 1)) k L' h_L'
+                have h_L'_matches : L'.flatten.reduceOption ∈ rₖₖ.matches' := by
+                    simp [h_L'_L, symm h_L]
+                    sorry
 
-                have h_containsₖₖ := regex_for_path_contains_kk A i j k (k-1) (by omega)
-
-                have h_path_ik := εNFA.path_if_contains (to_trim A i j k) (to_trim A i k (k-1)) h_containsᵢₖ i k xᵢₖ' h_inductionᵢₖ
-                have h_path_kk := εNFA.path_if_contains (to_trim A i j k) (to_trim A k k (k-1)) h_containsₖₖ i k xₖₖ' h_inductionₖₖ
+                obtain ⟨ xₖₖ', h_xₖₖ', h_inductionₖₖ ⟩ := (regex_is_path A k k (k-1) rₖₖ rfl L'.flatten.reduceOption).mp h_L'_matches
 
                 use xᵢₖ' ++ xₖₖ' ++ xₖⱼ'
-                sorry
+
+                simp [symm h_xᵢₖ', symm h_xₖⱼ'] at h_x
+                simp [List.reduceOption_append]
+                refine ⟨ by simp_all, ?_ ⟩
+
+                have h_containsᵢₖ := regex_for_path_contains_ik A i j k (k-1) (by omega)
+                have h_containsₖⱼ := regex_for_path_contains_kj A i j k (k-1) (by omega)
+                have h_containsₖₖ := regex_for_path_contains_kk A i j k (k-1) (by omega)
+                have h_path_ik := εNFA.path_if_contains (to_trim A i j k) (to_trim A i k (k-1)) h_containsᵢₖ i k xᵢₖ' h_inductionᵢₖ
+                have h_path_kj := εNFA.path_if_contains (to_trim A i j k) (to_trim A k j (k-1)) h_containsₖⱼ k j xₖⱼ' h_inductionₖⱼ
+                have h_path_kk := εNFA.path_if_contains (to_trim A i j k) (to_trim A k k (k-1)) h_containsₖₖ k k xₖₖ' h_inductionₖₖ
+
+                apply (to_trim A i j k).isPath_append.mpr
+                use k
+                refine ⟨ h_path_ik , ?_ ⟩
+                apply (to_trim A i j k).isPath_append.mpr
+                use k
+
     case mpr => sorry
 
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : A.is_finite_automata → (∃ (r: RegularExpression alphabet), r.matches' = A.accepts) := by

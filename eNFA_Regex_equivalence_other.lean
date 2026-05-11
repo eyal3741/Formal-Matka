@@ -1254,17 +1254,19 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
             case pos => simp [h_step]
             case neg => simp [h_step] ; omega
 
-        case neg h_k_not_0 =>
+        case neg =>
             let rᵢⱼ := regex_for_path_from_i_to_j_through_k A i j (k - 1)
             let rᵢₖ := regex_for_path_from_i_to_j_through_k A i k (k - 1)
-            let rₖₖ := (regex_for_path_from_i_to_j_through_k A k k (k - 1)) -- later: rₖₖ.star
+            let rₖₖ := (regex_for_path_from_i_to_j_through_k A k k (k - 1))
             let rₖⱼ := regex_for_path_from_i_to_j_through_k A k j (k - 1)
 
             simp at h_r_matches_x
             simp [hr, Language.add_def] at h_r_matches_x
+            clear hr
             cases h_r_matches_x
             case inl h_x_in_rᵢⱼ =>
                 have h_induction := (regex_is_path A i j (k-1) rᵢⱼ rfl x).mp h_x_in_rᵢⱼ
+                clear rᵢⱼ rᵢₖ rₖⱼ rₖₖ
                 obtain ⟨ x', h_x', h_path ⟩ := h_induction
 
                 use x'
@@ -1273,45 +1275,73 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
                 have h_contains := regex_for_path_contains_ij A i j k (k-1) (by omega)
                 exact εNFA.path_if_contains (to_trim A i j k) (to_trim A i j (k-1)) h_contains i j x' h_path
             case inr h_x_in_rᵢₖ_rₖₖ_rₖⱼ =>
+                clear rᵢⱼ
                 simp [Language.mul_def] at h_x_in_rᵢₖ_rₖₖ_rₖⱼ
                 obtain ⟨ xᵢₖ, h_xᵢₖ, xₖₖ, h_xₖₖ, xₖⱼ, h_xₖⱼ, h_x ⟩ := h_x_in_rᵢₖ_rₖₖ_rₖⱼ
-                obtain ⟨ xᵢₖ', h_xᵢₖ', h_inductionᵢₖ ⟩ := (regex_is_path A i k (k-1) rᵢₖ rfl xᵢₖ).mp h_xᵢₖ
-                obtain ⟨ xₖⱼ', h_xₖⱼ', h_inductionₖⱼ ⟩ := (regex_is_path A k j (k-1) rₖⱼ rfl xₖⱼ).mp h_xₖⱼ
+                obtain ⟨ xᵢₖ', h_xᵢₖ', h_path_ik ⟩ := (regex_is_path A i k (k-1) rᵢₖ rfl xᵢₖ).mp h_xᵢₖ
+                obtain ⟨ xₖⱼ', h_xₖⱼ', h_path_kj ⟩ := (regex_is_path A k j (k-1) rₖⱼ rfl xₖⱼ).mp h_xₖⱼ
+                clear rᵢₖ rₖⱼ h_xᵢₖ h_xₖⱼ
 
                 simp [Language.kstar_def] at h_xₖₖ
                 obtain ⟨ L, h_L, h_xₖₖ ⟩ := h_xₖₖ
-                have : ∃ (L' : List (List (Option alphabet))), L'.flatten.reduceOption = L.flatten ∧
+
+                have h_path_L_kk : ∃ (L' : List (List (Option alphabet))), L'.flatten.reduceOption = L.flatten ∧
                     (∀ x' ∈ L', (to_trim A k k (k - 1)).IsPath k k x') := by
-                    sorry
+                    clear h_L
+                    induction L
+                    case nil => use []; simp
+                    case cons head tail h_induction =>
+                        simp at h_xₖₖ
+                        obtain ⟨ L'', h_L'', h_path_L'' ⟩ := h_induction h_xₖₖ.right
+                        obtain ⟨ head', h_head', h_path_head' ⟩ := (regex_is_path A k k (k-1) rₖₖ rfl head).mp h_xₖₖ.left
+                        use head' :: L''
+                        simp [List.reduceOption_append, h_head', h_L'', h_path_head']
+                        exact h_path_L''
+                clear rₖₖ h_xₖₖ
 
-                obtain ⟨ L', h_L'_L, h_L' ⟩ := this
-                have := regex_for_path_kk_star_is_path_in_kk (to_trim A k k (k - 1)) k L' h_L'
-                have h_L'_matches : L'.flatten.reduceOption ∈ rₖₖ.matches' := by
-                    simp [h_L'_L, symm h_L]
-                    sorry
+                obtain ⟨ L', h_L', h_path_kk ⟩ := h_path_L_kk
 
-                obtain ⟨ xₖₖ', h_xₖₖ', h_inductionₖₖ ⟩ := (regex_is_path A k k (k-1) rₖₖ rfl L'.flatten.reduceOption).mp h_L'_matches
+                let xₖₖ' := L'.flatten
+                replace h_path_kk : (to_trim A k k (k - 1)).IsPath k k xₖₖ' := by
+                    clear h_L h_L'
+                    subst xₖₖ'
+                    induction L'
+                    case nil => simp
+                    case cons head tail h_induction =>
+                        simp at h_path_kk
+                        replace h_induction := h_induction h_path_kk.right
+
+                        simp [List.flatten_cons]
+                        apply (to_trim A k k (k - 1)).isPath_append.mpr
+                        exact ⟨ k, h_path_kk.left, h_induction ⟩
 
                 use xᵢₖ' ++ xₖₖ' ++ xₖⱼ'
 
                 simp [symm h_xᵢₖ', symm h_xₖⱼ'] at h_x
                 simp [List.reduceOption_append]
+
+                have : xₖₖ'.reduceOption = L.flatten := by
+                    subst h_L
+                    simp_all only [xₖₖ']
+
                 refine ⟨ by simp_all, ?_ ⟩
 
                 have h_containsᵢₖ := regex_for_path_contains_ik A i j k (k-1) (by omega)
                 have h_containsₖⱼ := regex_for_path_contains_kj A i j k (k-1) (by omega)
                 have h_containsₖₖ := regex_for_path_contains_kk A i j k (k-1) (by omega)
-                have h_path_ik := εNFA.path_if_contains (to_trim A i j k) (to_trim A i k (k-1)) h_containsᵢₖ i k xᵢₖ' h_inductionᵢₖ
-                have h_path_kj := εNFA.path_if_contains (to_trim A i j k) (to_trim A k j (k-1)) h_containsₖⱼ k j xₖⱼ' h_inductionₖⱼ
-                have h_path_kk := εNFA.path_if_contains (to_trim A i j k) (to_trim A k k (k-1)) h_containsₖₖ k k xₖₖ' h_inductionₖₖ
+                replace h_path_ik := εNFA.path_if_contains (to_trim A i j k) (to_trim A i k (k-1)) h_containsᵢₖ i k xᵢₖ' h_path_ik
+                replace h_path_kj := εNFA.path_if_contains (to_trim A i j k) (to_trim A k j (k-1)) h_containsₖⱼ k j xₖⱼ' h_path_kj
+                replace h_path_kk := εNFA.path_if_contains (to_trim A i j k) (to_trim A k k (k-1)) h_containsₖₖ k k xₖₖ' h_path_kk
 
                 apply (to_trim A i j k).isPath_append.mpr
-                use k
-                refine ⟨ h_path_ik , ?_ ⟩
+                refine ⟨ k, h_path_ik , ?_ ⟩
                 apply (to_trim A i j k).isPath_append.mpr
                 use k
 
-    case mpr => sorry
+    case mpr =>
+        intro h
+        obtain ⟨ x', h_x', h_x'_path ⟩ := h
+        sorry
 
 theorem εNFA_to_Regex (A: εNFA alphabet ℕ) : A.is_finite_automata → (∃ (r: RegularExpression alphabet), r.matches' = A.accepts) := by
     let A' := to_singular A

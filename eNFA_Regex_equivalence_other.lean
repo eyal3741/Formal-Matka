@@ -970,6 +970,24 @@ def to_trim (A : εNFA alphabet ℕ) (i j k : ℕ) : εNFA alphabet ℕ := {
 def is_trim (A' : εNFA alphabet ℕ) (i' j' k' : ℕ) :=
     ∃ (A : εNFA alphabet ℕ), A' = to_trim A i' j' k'
 
+def to_trim_contains (A A' : εNFA α ℕ) (i' j' k' : ℕ)
+    (h_trim : A' = to_trim A i' j' k') : A.contains A' := by
+    unfold εNFA.contains
+    intro q σ
+    subst h_trim
+    unfold to_trim
+    simp
+    split_ifs
+    case pos => simp
+    case neg => simp
+
+def path_if_to_trim_path (A A' : εNFA α ℕ) (qs qf i' j' k' : ℕ) (y : List (Option α))
+    (h_trim : A' = to_trim A i' j' k'):
+    (A'.IsPath qs qf y) → (A.IsPath qs qf y) := by
+    have h_contains := to_trim_contains A A' i' j' k' h_trim
+    exact εNFA.path_if_contains A A' h_contains qs qf y
+
+
 lemma singular_finite_accepts_iff_trim_accepts (A A': εNFA alphabet ℕ) (s a n: ℕ)
 (hAsingular: is_singular A) (hAfinite: A.is_finite_automata)
 (hn_max: A.max_reachable_node n) (hs_start: is_alone_in_set A.start s) (ha_accept: is_alone_in_set A.accept a)
@@ -1028,14 +1046,23 @@ noncomputable
 def regex_for_path_from_i_to_j_through_k (A : εNFA alphabet ℕ) (i j k : ℕ) :
     RegularExpression alphabet :=
     if k = 0 then
-        let character_set: Finset alphabet := { σ |  j ∈ A.step i (some σ) }
-        let characters := character_set.toList
         if i = j then
-            (character_list_to_regex characters).star
+            let character_set_ii: Finset alphabet := { σ |  i ∈ A.step i (some σ) }
+            let characters_ii := character_set_ii.toList
+
+            (character_list_to_regex characters_ii).star
         else if j ∈ A.step i none then
-            1 + character_list_to_regex characters
+            let character_set_ij: Finset alphabet := { σ |  j ∈ A.step i (some σ) }
+            let characters_ij := character_set_ij.toList
+            let character_set_jj: Finset alphabet := { σ |  j ∈ A.step j (some σ) }
+            let characters_jj := character_set_jj.toList
+
+            (1 + character_list_to_regex characters_ij) * (character_list_to_regex characters_jj).star
         else
-            character_list_to_regex characters
+            let character_set_ij: Finset alphabet := { σ |  j ∈ A.step i (some σ) }
+            let characters_ij := character_set_ij.toList
+
+            character_list_to_regex characters_ij
     else
         let rᵢⱼ := regex_for_path_from_i_to_j_through_k A i j (k-1)
         let rᵢₖ := regex_for_path_from_i_to_j_through_k A i k (k-1)
@@ -1218,6 +1245,10 @@ lemma regex_for_path_contains_kj (A : εNFA alphabet ℕ) (i j k k' : ℕ) (h_k'
             simp [h_step.left]
             omega
 
+lemma not_none_is_some (c : Option alphabet):
+    c ≠ none → ∃ (σ : alphabet), c = some σ := by
+    sorry --TODO
+
 lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression alphabet) (hr: r = regex_for_path_from_i_to_j_through_k A i j k) (h_zero_step: ∀ (σ : Option alphabet), A.step 0 σ = ∅):
     ∀(x : List alphabet), ((x ∈ r.matches') ↔ (∃(x': List ((Option alphabet))), (x'.reduceOption = x) ∧ ((to_trim A i j k).IsPath i j x'))) := by
     intro x
@@ -1229,14 +1260,16 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
         case pos h_k_0 h_ij =>
             subst h_k_0
 
-            simp [hr, Language.add_def] at h_r_matches_x
+            simp [hr, Language.kstar_def] at h_r_matches_x
             cases h_r_matches_x
-            case inl h_x_in_1 =>
-                simp [Language.one_def] at h_x_in_1
+            case intro L h_L =>
+                obtain ⟨ h_x_L, h_L ⟩ := h_L
+
                 by_cases h_i_eq_j: i = j
                 case pos =>
+                    subst h_i_eq_j
                     use []
-                    simp [h_x_in_1, h_i_eq_j]
+                    simp [h_x_in_1]
                 case neg =>
                     use [none]
                     simp [h_x_in_1, to_trim, h_i_eq_j] at h_ij ⊢
@@ -1459,8 +1492,7 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
                     simp [Language.kstar_def] at h_induction ⊢
                     obtain ⟨ L, h_L_tail, h_L_matches ⟩ := h_induction
 
-                    replace h_c_some : ∃ (σ : alphabet), c = some σ := by
-                        sorry --TODO
+                    replace h_c_some := not_none_is_some c h_c_some
                     obtain ⟨ σ, h_σ ⟩ := h_c_some
                     subst h_σ
 
@@ -1491,12 +1523,42 @@ lemma regex_is_path (A : εNFA alphabet ℕ) (i j k : ℕ) (r: RegularExpression
             cases x'
             case nil =>
                 subst h_x' hr
-                simp [Language.mem_add]
-            case cons head tail =>
-                by_cases h_tail_empty: tail = []
-                case pos =>
-                    subst h_tail_empty hr
+                simp [Language.mem_add, Language.mem_mul]
+                left
+                sorry -- TODO
+            case cons c tail =>
+                subst hr
+                simp [Language.mem_add, Language.mem_mul]
+                by_cases c = none
+                case pos h_c_none =>
+                    left
+                    subst h_c_none
+                    simp at h_x'
+                    cases h_x'_path
+                    case cons t h_step h_path =>
+
+                        sorry
+
+                    exact h_x'
+                case neg h_c_some =>
+                    right
+                    replace h_c_some := not_none_is_some c h_c_some
+                    obtain ⟨ σ, h_σ ⟩ := h_c_some
+                    subst h_σ
+                    simp at h_x'
+                    subst h_x'
+                    let character_set: Finset alphabet := { σ | j ∈ A.step i (some σ) }
+                    let characters := character_set.toList
+                    let r := character_list_to_regex characters
+                    apply (character_list_regex_accepts_characters characters r rfl [σ]).mpr
+                    use σ
+                    subst characters character_set
                     simp
+                    have h_path_trim := path_if_to_trim_path A (to_trim A i j k) i j i j k [some σ] rfl
+                    apply h_path_trim at h_x'_path
+                    simp [εNFA.isPath_singleton] at h_x'_path
+                    exact h_x'_path
+
 
             sorry
         case neg h_k_0 h_i_neq_j h_not_step =>

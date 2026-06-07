@@ -1267,12 +1267,92 @@ lemma regex_for_path_contains_kj (A : εNFA α ℕ) (i j k k' : ℕ) (h_k' : k' 
             simp [h_step.left]
             omega
 
+lemma path_start_mem_supp
+    (A : εNFA α ℕ) (s u : ℕ) (x : List (Option α))
+    (p : A.Path s u x) :
+    s ∈ p.supp := by
+        cases p with
+        | nil s =>
+            simp [εNFA.Path.supp]
+        | cons t s u c tail h_step h_rest =>
+            simp [εNFA.Path.supp]
+
 lemma not_none_is_some (c : Option α):
     c ≠ none → ∃ (σ : α), c = some σ := by
     intro h_not_none
     cases c
     case none => contradiction
     case some σ => use σ
+
+lemma path_trim_of_not_mem_supp
+    (A : εNFA α ℕ) (i j k : ℕ)
+    (s u : ℕ) (x' : List (Option α))
+    (hk : k ≠ 0)
+    (p : (to_trim A i j k).Path s u x')
+    (h_not : k ∉ p.supp) :
+    Nonempty ((to_trim A i j (k - 1)).Path s u x') := by
+  revert h_not
+  induction p with
+  | nil s =>
+      intro h_not
+      exact (to_trim A i j (k - 1)).isPath_nil.mpr rfl
+
+  | cons t s u c tail h_step h_rest ih =>
+      intro h_not
+
+      have h_not_rest : k ∉ h_rest.supp := by
+            intro hk_rest
+            apply h_not
+            simp [εNFA.Path.supp, hk_rest]
+
+      have h_rest_small :
+          Nonempty ((to_trim A i j (k - 1)).Path t u tail) := by
+            exact ih h_not_rest
+
+      have h_t_not_k : t ≠ k := by
+            intro htk
+            subst t
+            exact h_not_rest (path_start_mem_supp (to_trim A i j k) k u tail h_rest)
+
+      have h_step_small :
+          t ∈ (to_trim A i j (k - 1)).step s c := by
+        simp [to_trim] at h_step
+        simp [to_trim]
+
+        by_cases h_old : (j > k)
+        · simp [h_old] at h_step
+          have hk_pos : 0 < k := by omega
+          have h_new : k - 1 < j := by
+            omega
+          simp [h_new]
+
+          rcases h_step with hcase1 | hcase2
+          · rcases hcase1 with ⟨hAstep, hbound⟩
+            left
+            refine ⟨hAstep, ?_⟩
+            omega
+          · rcases hcase2 with ⟨hAstep, htj⟩
+            right
+            refine ⟨hAstep, ?_⟩
+            exact htj
+
+        · simp [h_old] at h_step
+          by_cases h_new : (j > k - 1)
+          · simp [h_new]
+            rcases h_step with ⟨hAstep, hbound⟩
+            left
+            refine ⟨hAstep, ?_⟩
+            omega
+
+          · simp [h_new]
+            rcases h_step with ⟨hAstep, hbound⟩
+            refine ⟨hAstep, ?_⟩
+            omega
+
+      rw [← List.singleton_append]
+      apply (to_trim A i j (k - 1)).isPath_append.mpr
+      refine ⟨t, ?_, h_rest_small⟩
+      exact (to_trim A i j (k - 1)).isPath_singleton.mpr h_step_small
 
 lemma regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (hr: r = regex_for_path_from_i_to_j_through_k A i j k)
     (h_zero_step: ∀ (σ : Option α), A.step 0 σ = ∅) (h_step_zero: ∀ (q : ℕ) (σ : Option α), 0 ∉ A.step q σ):
@@ -1933,9 +2013,11 @@ lemma regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (
             case neg h_k_notin_supp =>
                 left
                 have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') := by
-                    sorry
-                exact (regex_is_path A i j (k-1) rᵢⱼ rfl h_zero_step h_step_zero x).mpr ⟨ x', h_x', h_x_in_left ⟩
+                    exact path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 h_x'_path h_k_notin_supp
 
+                exact (regex_is_path A i j (k - 1) rᵢⱼ rfl
+                    h_zero_step h_step_zero x).mpr
+                    ⟨x', h_x', h_x_in_left⟩
 
             -- --cases h_x'_path
 

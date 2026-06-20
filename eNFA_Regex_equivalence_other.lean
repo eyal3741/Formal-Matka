@@ -1364,29 +1364,22 @@ lemma regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (
         unfold regex_for_path_from_i_to_j_through_k at hr
         split_ifs at hr
         case pos h_k_0 h_ij =>
-            subst h_k_0
+            subst h_k_0 h_ij
 
             simp [hr, Language.kstar_def] at h_r_matches_x
             cases h_r_matches_x
             case intro L h_L =>
                 obtain ⟨ h_x_L, h_L ⟩ := h_L
 
-                by_cases h_i_eq_j: i = j
+                use [none]
+                simp [to_trim]
+                split_ifs
                 case pos =>
-                    subst h_i_eq_j
-
+                    simp
 
                 case neg =>
-                    use [none]
-                    simp [h_x_in_1, to_trim, h_i_eq_j] at h_ij ⊢
-                    split_ifs
-                    case pos =>
-                        simp
-                        right
-                        exact h_ij
-                    case neg =>
-                        simp [h_ij]
-                        omega
+                    simp [h_ij]
+                    omega
 
             case inr h_x_in_character_list =>
                 let character_set: Finset alphabet := { σ |  j ∈ A.step i (some σ) }
@@ -2009,11 +2002,12 @@ lemma regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (
             by_cases k ∈ supp
             case pos h_k_supp =>
                 right
+
                 sorry
             case neg h_k_notin_supp =>
                 left
-                have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') := by
-                    exact path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 h_x'_path h_k_notin_supp
+                have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') :=
+                    path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 h_x'_path h_k_notin_supp
 
                 exact (regex_is_path A i j (k - 1) rᵢⱼ rfl
                     h_zero_step h_step_zero x).mpr

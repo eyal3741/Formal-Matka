@@ -17,6 +17,31 @@ set_option linter.unusedSectionVars false
 
 namespace εNFA
 
+variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
+
+@[simp]
+def Path.steps [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List (σ × Option α × Prop)
+  | nil s => [(s, none, True)]
+  | cons _ _ _ c _ _ p => [(s, c, (t ∈ M.step s c))] ++ p.steps
+
+def Path.steps.states [DecidableEq σ] : List (σ × Option α × Prop) → List σ
+  | List.nil => []
+  | List.cons head tail => [head.1] ++ states tail
+
+def Path.steps.word [DecidableEq σ] : List (σ × Option α × Prop) → List (Option α)
+  | List.nil => []
+  | List.cons head tail => [head.2.1] ++ word tail
+
+@[simp]
+def Path.states [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List σ
+  | nil s => [s]
+  | cons _ _ _ _ _ _ p => [s] ++ p.states
+
+lemma sub_stepList_is_path (A : εNFA α ℕ) (qs qf : ℕ) (x : List (Option α)) (path: A.Path qs qf x)
+    (SL : List (ℕ × Option α × Prop)) (hSL: SL ≠ []) :
+    SL.IsInfix path.steps → ∃ subpath, subpath = A.Path (SL.head hSL).1 (SL.getLast hSL).1 := by
+    simp only [↓existsAndEq, implies_true]
+
 def to_0mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' | q' ∈ A.start  }
     accept := { 2*q' | q' ∈ A.accept }
@@ -263,13 +288,6 @@ lemma path_if_contains (A : εNFA α ℕ) (A' : εNFA α ℕ) (h_contains: A.con
             exact mem_of_subset_of_mem (h_contains q₁ c) h_step
         apply A.isPath_singleton.mpr at h_step
         exact A.isPath_append.mpr ⟨ t, h_step, h_induction ⟩
-
-variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
-
-@[simp]
-def Path.stateList [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List σ
-  | nil s => [s]
-  | cons _ _ _ _ _ _ p => [s] ++ p.stateList
 
 end εNFA
 
@@ -1551,22 +1569,58 @@ lemma path_prefix_of_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option 
                     use path_qs_t
                     sorry -- TODO union of supps
 
+open εNFA
 
+lemma split_path_by_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (Option α)) (path_ij: A.Path i j x'):
+    (k ∈ path_ij.supp) → ∃ (steps_ik steps_kk steps_kj : List (ℕ × Option α × Prop)),
+        steps_ik ++ steps_kk ++ steps_kj = path_ij.steps ∧
+        (k ∉ (Path.steps.states steps_ik).tail) ∧ (k ∉ (Path.steps.states steps_kj).tail) := by
+    intro h_k_supp
+    induction path_ij
+    case nil s =>
+        use [(s, none, True)], [], []
+        simp [Path.steps.states]
+    case cons t s u c tail h_step path h_induction =>
+        by_cases k = s
+        case pos h_sk =>
+            subst h_sk
+            use [(k, none, True)]
+            by_cases k ∈ path.supp
+            case pos h_k_in_path =>
+                obtain ⟨ steps_ik, steps_kk, steps_kj, h_path, h ⟩ := h_induction h_k_in_path
+                use steps_ik ++ steps_kk, steps_kj
+                simp
+            case neg => sorry
+        case neg => sorry
 
 theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (hr: r = regex_for_path_from_i_to_j_through_k A i j k)
     (h_zero_step: ∀ (σ : Option α), A.step 0 σ = ∅) (h_step_zero: ∀ (q : ℕ) (σ : Option α), 0 ∉ A.step q σ):
-    ∀(x : List α), ((x ∈ r.matches') ↔ (∃(x': List (Option α)), (x'.reduceOption = x) ∧ Nonempty ((to_trim A i j k).Path i j x'))) := by
+    ∀ (x : List α), ((x ∈ r.matches') ↔ (∃(x': List (Option α)), (x'.reduceOption = x) ∧
+     ∃ (path_ij: A.Path i j x'), ∀ (k': ℕ), ((k' > k) → k' ∉ path_ij.states.tail))) := by
     intro x
     constructor
     case mp =>
-        exact regex_is_path_mp A i j k r hr h_zero_step h_step_zero x
+        sorry
+        -- exact regex_is_path_mp A i j k r hr h_zero_step h_step_zero x
     case mpr =>
         intro h
-        obtain ⟨ x', h_x', h_x'_path ⟩ := h
-        unfold regex_for_path_from_i_to_j_through_k at hr
+        obtain ⟨ x', h_x', h_path_ij ⟩ := h
+        obtain ⟨ path_ij, h_path_ij ⟩ := h_path_ij
 
-        split_ifs at hr
-        case pos h_k_0 h_ij => sorry
+        by_cases k ∈ h_path_ij.supp
+        case pos h_k =>
+            obtain ⟨ stesp_ik, steps_kk, steps_kj, h_steps ⟩ := split_path_by_state A i j k x' path_ij h_k
+
+
+            sorry
+        case neg =>
+            -- by induction r₁
+            sorry
+
+        -- unfold regex_for_path_from_i_to_j_through_k at hr
+
+        -- split_ifs at hr
+        -- case pos h_k_0 h_ij => sorry
         --     subst h_ij h_k_0
         --     simp at hr
         --     subst hr
@@ -2055,118 +2109,118 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
             --         have := h_step_zero i c
             --         contradiction
 
-        case neg h_k_not_0 =>
-            let rᵢⱼ := regex_for_path_from_i_to_j_through_k A i j (k - 1)
-            let rᵢₖ := regex_for_path_from_i_to_j_through_k A i k (k - 1)
-            let rₖₖ := regex_for_path_from_i_to_j_through_k A k k (k - 1)
-            let rₖⱼ := regex_for_path_from_i_to_j_through_k A k j (k - 1)
+        -- case neg h_k_not_0 =>
+        --     let rᵢⱼ := regex_for_path_from_i_to_j_through_k A i j (k - 1)
+        --     let rᵢₖ := regex_for_path_from_i_to_j_through_k A i k (k - 1)
+        --     let rₖₖ := regex_for_path_from_i_to_j_through_k A k k (k - 1)
+        --     let rₖⱼ := regex_for_path_from_i_to_j_through_k A k j (k - 1)
 
-            let A_ij := (to_trim A i j k)
-            let A_ik := (to_trim A i k (k - 1))
-            let A_kk := (to_trim A k k (k - 1))
-            let A_kj := (to_trim A k j (k - 1))
+        --     let A_ij := (to_trim A i j k)
+        --     let A_ik := (to_trim A i k (k - 1))
+        --     let A_kk := (to_trim A k k (k - 1))
+        --     let A_kj := (to_trim A k j (k - 1))
 
-            have h_path_ij : Nonempty (A_ij.Path i j x') := h_x'_path
-            obtain ⟨ path_ij ⟩ := h_path_ij
+        --     have h_path_ij : Nonempty (A_ij.Path i j x') := h_x'_path
+        --     obtain ⟨ path_ij ⟩ := h_path_ij
 
-            simp [hr]
-            by_cases k ∈ path_ij.supp
-            case pos h_k_supp =>
-                right
-                have h_lemma : ∃ (x'_ik x'_kk x'_kj : List (Option α)),
-                    Nonempty (A_ik.Path i k x'_ik) ∧
-                    (∃ (L' : List (List (Option α))), L'.flatten = x'_kk ∧
-                     ∀ y' ∈ L', Nonempty (A_kk.Path k k y')) ∧
-                    Nonempty (A_kj.Path k j x'_kj) ∧
-                    x' = x'_ik ++ x'_kk ++ x'_kj := by
+        --     simp [hr]
+        --     by_cases k ∈ path_ij.supp
+        --     case pos h_k_supp =>
+        --         right
+        --         have h_lemma : ∃ (x'_ik x'_kk x'_kj : List (Option α)),
+        --             Nonempty (A_ik.Path i k x'_ik) ∧
+        --             (∃ (L' : List (List (Option α))), L'.flatten = x'_kk ∧
+        --              ∀ y' ∈ L', Nonempty (A_kk.Path k k y')) ∧
+        --             Nonempty (A_kj.Path k j x'_kj) ∧
+        --             x' = x'_ik ++ x'_kk ++ x'_kj := by
 
-                    have h_x'_ik : ∃ (x'_ik : List (Option α)), x'_ik.isPrefixOf x' ∧
-                        ((i = k ∧ x'_ik = []) ∨ ∃ (path_ik : A_ij.Path i k x'_ik), k ∉ path_ik.supp) := by
-                        have := path_prefix_of_state A_ij i j k x' path_ij h_k_supp
-                        cases this
-                        case inl h_ik =>
-                            subst h_ik
-                            use []
-                            simp
-                        case inr h_y' =>
-                            obtain ⟨ y', h_y'_prefix, path_ik, h_path_ik ⟩ := h_y'
-                            use y'
-                            simp [h_y'_prefix]
-                            right
-                            use path_ik
+        --             have h_x'_ik : ∃ (x'_ik : List (Option α)), x'_ik.isPrefixOf x' ∧
+        --                 ((i = k ∧ x'_ik = []) ∨ ∃ (path_ik : A_ij.Path i k x'_ik), k ∉ path_ik.supp) := by
+        --                 have := path_prefix_of_state A_ij i j k x' path_ij h_k_supp
+        --                 cases this
+        --                 case inl h_ik =>
+        --                     subst h_ik
+        --                     use []
+        --                     simp
+        --                 case inr h_y' =>
+        --                     obtain ⟨ y', h_y'_prefix, path_ik, h_path_ik ⟩ := h_y'
+        --                     use y'
+        --                     simp [h_y'_prefix]
+        --                     right
+        --                     use path_ik
 
-                    obtain ⟨ x'_ik, h_prefix, h ⟩ := h_x'_ik
+        --             obtain ⟨ x'_ik, h_prefix, h ⟩ := h_x'_ik
 
-                    use x'_ik
-                    have : Nonempty (A_ik.Path i k x'_ik) := by
-                        cases h
-                        case inl h =>
-                            obtain ⟨ h_ik, h_empty ⟩ := h
-                            subst h_ik h_empty
-                            apply A_ik.isPath_nil.mpr
-                            rfl
-                        case inr h_path_ik =>
-                            obtain ⟨ path_ik , h_k_notin_supp ⟩ := h_path_ik
-                            have := path_trim_of_not_mem_supp A i j k i k x'_ik h_k_not_0 path_ik h_k_notin_supp
+        --             use x'_ik
+        --             have : Nonempty (A_ik.Path i k x'_ik) := by
+        --                 cases h
+        --                 case inl h =>
+        --                     obtain ⟨ h_ik, h_empty ⟩ := h
+        --                     subst h_ik h_empty
+        --                     apply A_ik.isPath_nil.mpr
+        --                     rfl
+        --                 case inr h_path_ik =>
+        --                     obtain ⟨ path_ik , h_k_notin_supp ⟩ := h_path_ik
+        --                     have := path_trim_of_not_mem_supp A i j k i k x'_ik h_k_not_0 path_ik h_k_notin_supp
 
-                            -- have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') :=
-                            --     path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 path_ij h_k_notin_supp
+        --                     -- have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') :=
+        --                     --     path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 path_ij h_k_notin_supp
 
-                            sorry
-                    sorry
+        --                     sorry
+        --             sorry
 
-                simp [Language.mul_def]
-                obtain ⟨ x'_ik, x'_kk, x'_kj, h_x'', h_x'_ik, h_x'_kk, h_x'_kj ⟩ := h_lemma
+        --         simp [Language.mul_def]
+        --         obtain ⟨ x'_ik, x'_kk, x'_kj, h_x'', h_x'_ik, h_x'_kk, h_x'_kj ⟩ := h_lemma
 
-                refine ⟨ x'_ik.reduceOption, ?_, x'_kk.reduceOption, ?_, x'_kj.reduceOption, ?_, ?_ ⟩
-                case refine_1 =>
-                    exact (regex_is_path A i k (k - 1) rᵢₖ rfl
-                        h_zero_step h_step_zero x'_ik.reduceOption).mpr
-                        ⟨x'_ik, rfl, h_x'_ik⟩
+        --         refine ⟨ x'_ik.reduceOption, ?_, x'_kk.reduceOption, ?_, x'_kj.reduceOption, ?_, ?_ ⟩
+        --         case refine_1 =>
+        --             exact (regex_is_path A i k (k - 1) rᵢₖ rfl
+        --                 h_zero_step h_step_zero x'_ik.reduceOption).mpr
+        --                 ⟨x'_ik, rfl, h_x'_ik⟩
 
-                case refine_2 =>
-                    simp [Language.kstar_def]
-                    obtain ⟨ L', h_L'_x'_kk, h_L' ⟩ := h_x'_kk
-                    let L : List (List α) := L'.map (fun x' => x'.reduceOption)
-                    use L
-                    refine ⟨ ?_, ?_ ⟩
-                    case refine_1 =>
-                        subst h_L'_x'_kk L
-                        exact list_map_of_reduce_option L'
+        --         case refine_2 =>
+        --             simp [Language.kstar_def]
+        --             obtain ⟨ L', h_L'_x'_kk, h_L' ⟩ := h_x'_kk
+        --             let L : List (List α) := L'.map (fun x' => x'.reduceOption)
+        --             use L
+        --             refine ⟨ ?_, ?_ ⟩
+        --             case refine_1 =>
+        --                 subst h_L'_x'_kk L
+        --                 exact list_map_of_reduce_option L'
 
-                    case refine_2 =>
-                        intro y h_y
-                        have : ∃ y' ∈ L', y'.reduceOption = y := by
-                            subst L
-                            simp at h_y
-                            exact h_y
-                        obtain ⟨ y', h_y'_in_L', h_y' ⟩ := this
-                        have := h_L' y' h_y'_in_L'
+        --             case refine_2 =>
+        --                 intro y h_y
+        --                 have : ∃ y' ∈ L', y'.reduceOption = y := by
+        --                     subst L
+        --                     simp at h_y
+        --                     exact h_y
+        --                 obtain ⟨ y', h_y'_in_L', h_y' ⟩ := this
+        --                 have := h_L' y' h_y'_in_L'
 
-                        exact (regex_is_path A k k (k - 1) rₖₖ rfl
-                            h_zero_step h_step_zero y).mpr
-                            ⟨y', h_y', this⟩
+        --                 exact (regex_is_path A k k (k - 1) rₖₖ rfl
+        --                     h_zero_step h_step_zero y).mpr
+        --                     ⟨y', h_y', this⟩
 
-                case refine_3 =>
-                    exact (regex_is_path A k j (k - 1) rₖⱼ rfl
-                        h_zero_step h_step_zero x'_kj.reduceOption).mpr
-                        ⟨x'_kj, rfl, h_x'_kj⟩
+        --         case refine_3 =>
+        --             exact (regex_is_path A k j (k - 1) rₖⱼ rfl
+        --                 h_zero_step h_step_zero x'_kj.reduceOption).mpr
+        --                 ⟨x'_kj, rfl, h_x'_kj⟩
 
-                case refine_4 =>
-                    have : x'.reduceOption = x'_ik.reduceOption ++ x'_kk.reduceOption ++ x'_kj.reduceOption := by
-                        subst h_x''
-                        simp [List.reduceOption_append]
-                    subst h_x'
-                    simp [this]
+        --         case refine_4 =>
+        --             have : x'.reduceOption = x'_ik.reduceOption ++ x'_kk.reduceOption ++ x'_kj.reduceOption := by
+        --                 subst h_x''
+        --                 simp [List.reduceOption_append]
+        --             subst h_x'
+        --             simp [this]
 
-            case neg h_k_notin_supp =>
-                left
-                have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') :=
-                    path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 path_ij h_k_notin_supp
+        --     case neg h_k_notin_supp =>
+        --         left
+        --         have h_x_in_left : Nonempty ((to_trim A i j (k - 1)).Path i j x') :=
+        --             path_trim_of_not_mem_supp A i j k i j x' h_k_not_0 path_ij h_k_notin_supp
 
-                exact (regex_is_path A i j (k - 1) rᵢⱼ rfl
-                    h_zero_step h_step_zero x).mpr
-                    ⟨x', h_x', h_x_in_left⟩
+        --         exact (regex_is_path A i j (k - 1) rᵢⱼ rfl
+        --             h_zero_step h_step_zero x).mpr
+        --             ⟨x', h_x', h_x_in_left⟩
 
             --cases h_x'_path
 

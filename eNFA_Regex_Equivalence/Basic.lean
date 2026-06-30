@@ -17,6 +17,13 @@ set_option linter.unusedSectionVars false
 
 namespace εNFA
 
+
+----------------------
+---------- Automata Doubling ----------
+-- -- -- -- -- -- -- -- -- -- --
+
+
+
 def to_0mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' | q' ∈ A.start  }
     accept := { 2*q' | q' ∈ A.accept }
@@ -248,6 +255,13 @@ lemma accepts_iff_0mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' 
 
 lemma accepts_iff_1mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' = to_1mod2 A) :
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inr hA')
+
+
+
+
+
+
+
 
 def contains (A : εNFA α ℕ) (A' : εNFA α ℕ) :=
     ∀ (q : ℕ), ∀ (σ: Option α), A'.step q σ ⊆ A.step q σ

@@ -21,28 +21,6 @@ namespace εNFA
 
 variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
 
-@[simp]
-def Path.steps [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List (σ × Option α × Prop)
-  | nil s => [(s, none, True)]
-  | cons _ _ _ c _ _ p => [(s, c, (t ∈ M.step s c))] ++ p.steps
-
-def Path.steps.states [DecidableEq σ] : List (σ × Option α × Prop) → List σ
-  | List.nil => []
-  | List.cons head tail => [head.1] ++ states tail
-
-def Path.steps.word [DecidableEq σ] : List (σ × Option α × Prop) → List (Option α)
-  | List.nil => []
-  | List.cons head tail => [head.2.1] ++ word tail
-
-@[simp]
-def Path.states [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List σ
-  | nil s => [s]
-  | cons _ _ _ _ _ _ p => [s] ++ p.states
-
-lemma sub_stepList_is_path (A : εNFA α ℕ) (qs qf : ℕ) (x : List (Option α)) (path: A.Path qs qf x)
-    (SL : List (ℕ × Option α × Prop)) (hSL: SL ≠ []) :
-    SL.IsInfix path.steps → ∃ subpath, subpath = A.Path (SL.head hSL).1 (SL.getLast hSL).1 := by
-    simp only [↓existsAndEq, implies_true]
 
 
 end εNFA

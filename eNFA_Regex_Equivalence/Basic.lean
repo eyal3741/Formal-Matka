@@ -18,9 +18,9 @@ set_option linter.unusedSectionVars false
 namespace εNFA
 
 
-----------------------
+---------------------------------------
 ---------- Automata Doubling ----------
--- -- -- -- -- -- -- -- -- -- --
+---------------------------------------
 
 
 
@@ -68,7 +68,6 @@ lemma if_1mod2_step_is_1mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q₂ :
     simp [to_1mod2] at h_step
     omega
 
-
 lemma if_mod2_step_is_same_mod2 (A' : εNFA α ℕ) (q₁ q₂ : ℕ) (σ : Option α) :
     A'.is_0mod2 ∨ A'.is_1mod2 → (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = q₂ % 2) := by
     intro h_mod2_eNFA h_step
@@ -93,8 +92,9 @@ lemma if_1mod2_step_is_same_mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q�
     exact hA'
 
 lemma if_mod2_path_is_same_mod2 (A' : εNFA α ℕ) (q₁ q₂ : ℕ) (x : List (Option α)):
-    A'.is_0mod2 ∨ A'.is_1mod2 → (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
+    A'.is_0mod2 ∨ A'.is_1mod2 → Nonempty (A'.Path q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
     intro h_mod2_eNFA h_path
+    obtain ⟨ h_path ⟩ := h_path
     induction h_path with
     | nil _ => rfl
     | cons t q₁ q₂ c tail h_step h_rest h_induction =>
@@ -102,10 +102,10 @@ lemma if_mod2_path_is_same_mod2 (A' : εNFA α ℕ) (q₁ q₂ : ℕ) (x : List 
         omega
 
 lemma if_0mod2_path_is_same_mod2 (A' : εNFA α ℕ) (hA': A'.is_0mod2) (q₁ q₂ : ℕ) (x : List (Option α)) :
-    (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := if_mod2_path_is_same_mod2 A' q₁ q₂ x (Or.inl hA')
+    Nonempty (A'.Path q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := if_mod2_path_is_same_mod2 A' q₁ q₂ x (Or.inl hA')
 
 lemma if_1mod2_path_is_same_mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q₂ : ℕ) (x : List (Option α)) :
-    (A'.IsPath q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := if_mod2_path_is_same_mod2 A' q₁ q₂ x (Or.inr hA')
+    Nonempty (A'.Path q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := if_mod2_path_is_same_mod2 A' q₁ q₂ x (Or.inr hA')
 
 lemma if_mod2_consequences (A' : εNFA α ℕ) (q : ℕ) :
     (A'.is_0mod2 → ((q ∈ A'.start → (q % 2 = 0)) ∧ (q ∈ A'.accept → (q % 2 = 0)))) ∧
@@ -134,7 +134,7 @@ lemma if_1mod2_qf_is_1mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q : ℕ) (hq:
 lemma path_iff_mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' : ℕ) (y : List (Option α)) :
     (((A' = A.to_0mod2) ∧ (qs' = 2 * qs)     ∧ (qf' = 2 * qf)) ∨
      ((A' = A.to_1mod2) ∧ (qs' = 2 * qs + 1) ∧ (qf' = 2 * qf + 1))) →
-     ((A.IsPath qs qf y) ↔ (A'.IsPath qs' qf' y)) := by
+     (Nonempty (A.Path qs qf y) ↔ Nonempty (A'.Path qs' qf' y)) := by
 
     rintro (⟨ hA', h_qs', h_qf' ⟩ | ⟨ hA', h_qs', h_qf' ⟩)
 
@@ -149,27 +149,23 @@ lemma path_iff_mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' :
     all_goals constructor
     case inl.mp | inr.mp =>
         intro h_path_in_A
+        obtain ⟨ h_path_in_A ⟩ := h_path_in_A
         induction h_path_in_A generalizing qs'
         case nil => simp [εNFA.isPath_nil]; omega
         case cons t q₁ q₂ σ tail h_step h_path h_induction =>
-            rw [@εNFA.isPath_iff]
-            right
             let t' := 2 * t + s
             subst s
-            use t', σ, tail
             have h_t'_step: t' ∈ A'.step qs' σ := by simp_all [t', to_0mod2, to_1mod2]
-            have h_t'_path: A'.IsPath t' qf' tail := by simp_all [t']
-            exact ⟨ h_t'_step, h_t'_path, rfl ⟩
-
+            have h_t'_path: Nonempty (A'.Path t' qf' tail) := by simp_all [t']
+            apply A'.isPath_singleton.mpr at h_t'_step
+            exact A'.isPath_append.mpr ⟨ t', h_t'_step, h_t'_path ⟩
     case inl.mpr | inr.mpr =>
         intro h_path_in_A'
+        obtain ⟨ h_path_in_A' ⟩ := h_path_in_A'
         induction h_path_in_A' generalizing qs
         case nil => simp [εNFA.isPath_nil]; omega
         case cons t' q₁' q₂' σ tail h_step h_path h_induction =>
-            rw [@εNFA.isPath_iff]
-            right
             let t := (t' - s) / 2
-            use t, σ, tail
 
             have h_t'_0mod2: t' % 2 = s := by
                 try exact (if_0mod2_step_is_0mod2 A' h_A'_mod2 q₁' t' σ h_step).right
@@ -178,18 +174,18 @@ lemma path_iff_mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' :
 
             subst s
             have h_t_step: t ∈ A.step qs σ := by simp_all [to_0mod2, to_1mod2]
-            have h_t_path: A.IsPath t qf tail := by simp_all
-
-            exact ⟨ h_t_step, h_t_path, rfl ⟩
+            have h_t_path: Nonempty (A.Path t qf tail) := by simp_all
+            apply A.isPath_singleton.mpr at h_t_step
+            exact A.isPath_append.mpr ⟨ t, h_t_step, h_t_path ⟩
 
 lemma path_iff_0mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' : ℕ) (y : List (Option α))
     (hA': A' = to_0mod2 A) (h_qs': qs' = 2 * qs) (h_qf': qf' = 2 * qf) :
-    (A.IsPath qs qf y) ↔ (A'.IsPath qs' qf' y) :=
+    Nonempty (A.Path qs qf y) ↔ Nonempty (A'.Path qs' qf' y) :=
     (path_iff_mod2_path A A' qs qf qs' qf' y (Or.inl ⟨ hA', h_qs', h_qf' ⟩))
 
 lemma path_iff_1mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' : ℕ) (y : List (Option α))
     (hA': A' = to_1mod2 A) (h_qs': qs' = 2 * qs + 1) (h_qf': qf' = 2 * qf + 1) :
-    (A.IsPath qs qf y) ↔ (A'.IsPath qs' qf' y) :=
+    Nonempty (A.Path qs qf y) ↔ Nonempty (A'.Path qs' qf' y) :=
     (path_iff_mod2_path A A' qs qf qs' qf' y (Or.inr ⟨ hA', h_qs', h_qf' ⟩))
 
 lemma accepts_iff_mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) :
@@ -221,7 +217,7 @@ lemma accepts_iff_mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) :
         subst s
         have h_qs': qs' ∈ A'.start  := by simp_all [qs']
         have h_qf': qf' ∈ A'.accept := by simp_all [qf']
-        have h_iff_path : A.IsPath qs qf x' ↔ A'.IsPath qs' qf' x' := by
+        have h_iff_path : Nonempty (A.Path qs qf x') ↔ Nonempty (A'.Path qs' qf' x') := by
             try exact path_iff_mod2_path A A' qs qf qs' qf' x' (Or.inl ⟨ hA', rfl, rfl ⟩)
             try exact path_iff_mod2_path A A' qs qf qs' qf' x' (Or.inr ⟨ hA', rfl, rfl ⟩)
 
@@ -243,7 +239,7 @@ lemma accepts_iff_mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) :
         subst s
         have h_qs: qs ∈ A.start  := by simp_all
         have h_qf: qf ∈ A.accept := by simp_all
-        have h_iff_path : A.IsPath qs qf x' ↔ A'.IsPath qs' qf' x' := by
+        have h_iff_path : Nonempty (A.Path qs qf x') ↔ Nonempty (A'.Path qs' qf' x') := by
             try exact path_iff_mod2_path A A' qs qf qs' qf' x' (Or.inl ⟨ hA', h_qs'_2qs, h_qf'_2qf ⟩)
             try exact path_iff_mod2_path A A' qs qf qs' qf' x' (Or.inr ⟨ hA', h_qs'_2qs, h_qf'_2qf ⟩)
 
@@ -257,10 +253,9 @@ lemma accepts_iff_1mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' 
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inr hA')
 
 
-
-
-
-
+------------------------------------------
+---------- Automata Containment ----------
+------------------------------------------
 
 
 def contains (A : εNFA α ℕ) (A' : εNFA α ℕ) :=
@@ -268,14 +263,48 @@ def contains (A : εNFA α ℕ) (A' : εNFA α ℕ) :=
 
 lemma path_if_contains (A : εNFA α ℕ) (A' : εNFA α ℕ) (h_contains: A.contains A')
     (q₁ q₂ : ℕ) (x : List (Option α)) :
-    A'.IsPath q₁ q₂ x → A.IsPath q₁ q₂ x := by
+    Nonempty (A'.Path q₁ q₂ x) → Nonempty (A.Path q₁ q₂ x) := by
     intro h_path_in_A'
     unfold contains at h_contains
+    obtain ⟨ h_path_in_A' ⟩ := h_path_in_A'
     induction h_path_in_A' with
     | nil q => exact A.isPath_nil.mpr rfl
     | cons t q₁ q₂ c tail h_step h_rest h_induction =>
-        constructor
-        · exact mem_preimage.mp (h_contains q₁ c h_step)
-        · exact h_induction
+        replace h_step : t ∈ A.step q₁ c := by
+            have := h_contains q₁ c
+            exact mem_of_subset_of_mem (h_contains q₁ c) h_step
+        apply A.isPath_singleton.mpr at h_step
+        exact A.isPath_append.mpr ⟨ t, h_step, h_induction ⟩
+
+
+
+-----------------------------------------
+---------- Automata Path Tools ----------
+-----------------------------------------
+
+variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
+
+@[simp]
+def Path.steps [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List (σ × Option α × Prop)
+  | nil s => [(s, none, True)]
+  | cons _ _ _ c _ _ p => [(s, c, (t ∈ M.step s c))] ++ p.steps
+
+def Path.steps.states [DecidableEq σ] : List (σ × Option α × Prop) → List σ
+  | List.nil => []
+  | List.cons head tail => [head.1] ++ states tail
+
+def Path.steps.word [DecidableEq σ] : List (σ × Option α × Prop) → List (Option α)
+  | List.nil => []
+  | List.cons head tail => [head.2.1] ++ word tail
+
+@[simp]
+def Path.states [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List σ
+  | nil s => [s]
+  | cons _ _ _ _ _ _ p => [s] ++ p.states
+
+lemma sub_stepList_is_path (A : εNFA α ℕ) (qs qf : ℕ) (x : List (Option α)) (path: A.Path qs qf x)
+    (SL : List (ℕ × Option α × Prop)) (hSL: SL ≠ []) :
+    SL.IsInfix path.steps → ∃ subpath, subpath = A.Path (SL.head hSL).1 (SL.getLast hSL).1 := by
+    simp only [↓existsAndEq, implies_true]
 
 end εNFA

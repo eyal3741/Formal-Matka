@@ -31,14 +31,6 @@ end εNFA
 
 variable {α : Type u} [Fintype α] [DecidableEq α]
 
-lemma dont_go_nowhere (A : εNFA α ℕ) (hAempty : A.start = ∅) : A.accepts = 0 := by
-    simp [Language.zero_def]
-    rw [Set.eq_empty_iff_forall_notMem] at hAempty ⊢
-    intro x
-    by_contra!
-    obtain ⟨ s₁, _, _, h_s₁, _⟩ := A.mem_accepts_iff_exists_path.mp this
-    simp [hAempty] at h_s₁ -- contradiction
-
 
 def SingularStart  := 2
 def SingularAccept := 0

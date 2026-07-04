@@ -13,6 +13,7 @@ universe u v
 variable {α : Type u} [Fintype α] [DecidableEq α]
 
 set_option linter.unusedSectionVars false
+set_option linter.unusedVariables false
 
 ------------------------------------
 ---------- Helpfull tools ----------
@@ -30,8 +31,13 @@ namespace εNFA
 variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
 
 @[simp]
+def Path.length [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → Nat
+  | Path.nil s => 0
+  | cons _ _ _ _ _ _ p => HAdd.hAdd (length p) 1
+
+@[simp]
 def Path.steps [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List (σ × Option α × Prop)
-  | nil s => [(s, none, True)]
+  | nil s => []
   | cons _ _ _ c _ _ p => [(s, c, (t ∈ M.step s c))] ++ p.steps
 
 def Path.steps.states [DecidableEq σ] : List (σ × Option α × Prop) → List σ
@@ -44,14 +50,93 @@ def Path.steps.word [DecidableEq σ] : List (σ × Option α × Prop) → List (
 
 @[simp]
 def Path.states [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List σ
-  | nil s => [s]
+  | nil s => []
   | cons _ _ _ _ _ _ p => [s] ++ p.states
+
+-- @[simp]
+-- def Path.tail [DecidableEq σ] {s s' t : σ} {x : List (Option α)} : M.Path s t x → M.Path s' t x.tail
+--   | nil s => M.Path s s []
+--   | cons _ _ _ _ _ _ p => [s] ++ p.states
 
 lemma sub_stepList_is_path (A : εNFA α ℕ) (qs qf : ℕ) (x : List (Option α)) (path: A.Path qs qf x)
     (SL : List (ℕ × Option α × Prop)) (hSL: SL ≠ []) :
     SL.IsInfix path.steps → ∃ subpath, subpath = A.Path (SL.head hSL).1 (SL.getLast hSL).1 := by
     simp only [↓existsAndEq, implies_true]
 
+noncomputable
+def Path.isEqv [BEq α] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
+  | Path.nil s₁, Path.nil s₂ => s₁ == s₂
+  | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
+      c₁ == c₂ && s₁ == s₂ && Path.isEqv path_y path_x
+  | _, _ => false
+
+noncomputable
+def Path.isPrefixOf [BEq α] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
+  | Path.nil s₁, _  => s₁ == s₂
+  | _, Path.nil s₂  => false
+  | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
+      c₁ == c₂ && s₁ == s₂ && Path.isPrefixOf path_y path_x
+
+noncomputable
+def Path.isSuffixOf [BEq α] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
+  | Path.nil t₁, _  => t₁ == t₂
+  | _, Path.nil t₂  => false
+  | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
+    if path_x.length = path_y.length then
+        c₁ == c₂ && s₁ == s₂ && Path.isEqv M path_y path_x
+    else
+        Path.isSuffixOf (Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y) path_x
+
+noncomputable
+def Path.isInfixOf [BEq α] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
+  | Path.nil s₁, _  => s₁ == s₂
+  | _, Path.nil s₂  => false
+  | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
+      c₁ == c₂ && s₁ == s₂ && Path.isPrefixOf M path_y path_x ||
+      Path.isInfixOf (Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y) path_x
+
+noncomputable
+def Path.append [BEq α] {qs qf t : σ} {x y : List (Option α)} :
+    (path_y : M.Path qs t y) → (path_x : M.Path t qf x) → M.Path qs qf (y ++ x)
+  | Path.nil s, p => p
+  | Path.cons u _ _ c tail_y h_step path_tail, p => Path.cons u qs qf c (tail_y ++ x) h_step (Path.append path_tail p)
+
+--   --
+--   with
+--   | nil => use path_x
+--   | cons u qs qf' c tail_y h_step path_tail =>
+--     use Path.cons u qs qf c (tail_y ++ x) h_step (Path.append path_tail path_x)
+
+
+-- @[specialize] def isEqv : (as bs : List α) → (eqv : α → α → Bool) → Bool
+--   | [],    [],    _   => true
+--   | a::as, b::bs, eqv => eqv a b && isEqv as bs eqv
+--   | _,     _,     _   => false
+
+-- noncomputable
+-- def Path.misPrefixOf [BEq α] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool := by
+--     intro path_y path_x
+--     cases path_x
+--     case nil _ => use s₁ == s₂
+--     case cons _ _ u₁ c₁ _ _ p₁ =>
+--         cases path_y
+--         case nil _ => use false
+--         case cons _ _ u₂ c₂ _ _ p₂ =>
+--             use c₁ == c₂ && u₁ == u₂ && p₁.misPrefixOf p₂
+-- termination_by x.length + y.length
+-- decreasing_by
+--     simp
+--     rename_i _ _ _ c₁ x_tail _ _ _ _ _ _ _ _ _ _ _ c₂ y_tail _ _ _ _ _ _ _ _
+--     omega
+
+-- lemma if_path_prefix_word_prefix (A : εNFA α ℕ) (qs qf q t : ℕ) (x y : List (Option α))
+--     (path_x: A.Path qs qf x) (path_y: A.Path q t y) :
+--     (Path.isPrefixOf A path_y path_x) → y.isPrefixOf x := by
+--     intro h_path_prefix
+--     induction path_x
+--     case nil s =>
+--         simp
+--         by_contra!
 
 ---------------------------------------
 ---------- Automata Doubling ----------

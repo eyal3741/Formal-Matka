@@ -157,10 +157,11 @@ for a given word.
 
 Also note that this is `Type` and not a `Prop`, so that we can speak about the properties
 of a particular `Path`, such as the set of states visited along the way (defined as `Path.supp`). -/
-inductive Path : σ → σ → List (Option α) → Type (max u v)
+inductive Path : σ → σ → List (Option α) → Type _
   | nil (s : σ) : Path s s []
   | cons (t s u : σ) (a : Option α) (x : List (Option α)) :
       t ∈ M.step s a → Path t u x → Path s u (a :: x)
+deriving DecidableEq
 
 /-- Set of states visited by a path. -/
 @[simp]

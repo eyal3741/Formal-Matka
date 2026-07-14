@@ -222,26 +222,40 @@ lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option �
                 simp[h_qs_neq_t] at h_t_in_path_qs_qf
                 replace h_induction := h_induction h_t_in_path_qs_qf
                 cases h_induction
-                case inl h => simp [symm h] at h_s_neq_t -- contradiction
+                case inl h => simp [symm h] at h_s_neq_t
                 case inr h_induction =>
                     obtain ⟨ p ⟩ := h_induction
                     obtain ⟨ y', tail', path_s_t, path_t_qf, h_tail, heq_append, h_supp ⟩ := p
                     let path_qs_t := Path.cons s qs t c y' h_step path_s_t
+
                     use {
                         word_qs_t := [c] ++ y'
                         word_t_qf := tail'
                         path_qs_t := path_qs_t
                         path_t_qf := path_t_qf
-                        h_word_qs_qf := (by subst h_tail; simp only [List.cons_append, List.nil_append])
-                        h_path_qs_qf := (by
-                            cases path_qs_t
-                            case cons t' h_step' path_t'_t =>
-                                -- TODO
-                        sorry)
-                        h_t := (by sorry)
+                        h_word_qs_qf := by
+                            subst tail
+                            simp
+                        h_path_qs_qf := by
+                            subst tail
+                            simp only [List.cons_append, List.nil_append]
+                            subst path_s_qf
+                            rfl
+                        h_t := by
+                            simp [path_qs_t, h_qs_neq_t, h_supp]
                     }
 
-structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Option α)) (path_ij: A.Path i j x') where
+
+@[simp]
+def εNFA.Path.suppAfterStart
+    {σ : Type*} [DecidableEq σ]
+    {M : εNFA α σ} {s t : σ} {x : List (Option α)} :
+    M.Path s t x → Finset σ
+  | Path.nil _ => ∅
+  | Path.cons _ _ _ _ _ _ p => p.supp
+
+
+structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Option α)) (path_ij: A.Path i j word_ij) where
   word_ik : List (Option α)
   word_kk : List (Option α)
   word_kj : List (Option α)
@@ -251,7 +265,7 @@ structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Optio
   h_word_ij : word_ij = word_ik ++ word_kk ++ word_kj
   h_path_ij : path_ij = h_word_ij▸(path_ik ++ path_kk ++ path_kj)
   h_k_notin_ik : k ∉ path_ik.supp
-  h_k_notin_kj : k ∉ path_kj.supp --TODO: remove first state
+  h_k_notin_kj : k ∉ path_kj.suppAfterStart
 
 
 lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (Option α)) (path_ij: A.Path i j x'):
@@ -263,41 +277,123 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
         simp at h_k_supp
         cases h_k_supp
         case inl h_ik =>
-            sorry
+            subst i
+            by_cases hk_tail : k ∈ path_tj.supp
+
+            case neg =>
+                have path_nil : A.Path k k [] := Path.nil k
+
+                use {
+                    word_ik := []
+                    word_kk := []
+                    word_kj := c :: tail
+                    path_ik := path_nil
+                    path_kk := path_nil
+                    path_kj := Path.cons t k j c tail h_step path_tj
+                    h_word_ij := by
+                        simp
+                    h_path_ij := by
+                        cases path_nil
+                        rfl
+                    h_k_notin_ik := by
+                        cases path_nil
+                        simp
+                    h_k_notin_kj := by
+                        simpa [Path.suppAfterStart] using hk_tail
+                }
+
+            case pos =>
+                obtain ⟨p, _⟩ := h_induction hk_tail
+                obtain ⟨
+                    word_tk, word_kk, word_kj,
+                    path_tk, path_kk, path_kj,
+                    h_word, h_path,
+                    h_notin_tk, h_notin_kj
+                ⟩ := p
+
+                have path_nil : A.Path k k [] := Path.nil k
+
+                let path_k_to_k : A.Path k k ([c] ++ word_tk) :=
+                    Path.cons t k k c word_tk h_step path_tk
+
+                use {
+                    word_ik := []
+                    word_kk := [c] ++ word_tk ++ word_kk
+                    word_kj := word_kj
+                    path_ik := path_nil
+                    path_kk := path_k_to_k ++ path_kk
+                    path_kj := path_kj
+
+                    h_word_ij := by
+                        subst tail
+                        simp [List.append_assoc]
+
+                    h_path_ij := by
+                        subst tail
+                        subst path_tj
+                        cases path_nil
+                        rfl
+
+                    h_k_notin_ik := by
+                        cases path_nil
+                        simp
+
+                    h_k_notin_kj := h_notin_kj
+                }
         case inr h_k_supp =>
             replace h_induction := h_induction h_k_supp
             obtain ⟨ p ⟩ := h_induction
-            obtain ⟨ word_tk, word_kk, word_kj, path_tk, path_kk, path_kj,
-                     h_equiv, h_k_notin_path_tk, h_notin_path_kj_tail⟩ := p
-            by_cases h_ik: k = i
+            obtain ⟨word_tk, word_kk, word_kj,path_tk, path_kk, path_kj,
+                h_word_equiv, h_path_equiv,h_k_notin_path_tk, h_notin_path_kj_tail
+            ⟩ := p
+
+            by_cases h_ik : k = i
             case pos =>
-                subst h_ik
-                have h_path_ik : Nonempty (A.Path k k []) := A.isPath_nil.mpr rfl
-                obtain ⟨ path_ik ⟩ := h_path_ik
+                subst i
+
+                have path_ik : A.Path k k [] := Path.nil k
+
                 use {
                     word_ik := []
                     word_kk := [c] ++ word_tk ++ word_kk
                     word_kj := word_kj
                     path_ik := path_ik
-                    path_kk := (sorry)
+                    path_kk :=
+                        (Path.cons t k k c word_tk h_step path_tk) ++ path_kk
                     path_kj := path_kj
-                    h_word_ij := (by sorry)
-                    h_path_ij := (by sorry)
-                    h_k_notin_ik := (by sorry)
-                    h_k_notin_kj := (by sorry)
+                    h_word_ij := by
+                        subst tail
+                        simp [List.append_assoc]
+                    h_path_ij := by
+                        subst tail
+                        subst path_tj
+                        cases path_ik
+                        rfl
+                    h_k_notin_ik := by
+                        cases path_ik
+                        simp
+                    h_k_notin_kj := h_notin_path_kj_tail
                 }
             case neg =>
                 use {
                     word_ik := [c] ++ word_tk
                     word_kk := word_kk
                     word_kj := word_kj
-                    path_ik := Path.cons t i k c word_tk h_step path_tk
+                    path_ik :=
+                        Path.cons t i k c word_tk h_step path_tk
                     path_kk := path_kk
                     path_kj := path_kj
-                    h_word_ij := (by simp_all)
-                    h_path_ij := (by simp_all)
-                    h_k_notin_ik := (by simp_all)
-                    h_k_notin_kj := (by simp_all)
+                    h_word_ij := by
+                        subst tail
+                        simp [List.append_assoc]
+                    h_path_ij := by
+                        subst tail
+                        subst path_tj
+                        rfl
+                    h_k_notin_ik := by
+                        simp [h_ik, h_k_notin_path_tk]
+                    h_k_notin_kj :=
+                        h_notin_path_kj_tail
                 }
 
 lemma regex_is_path_mp (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (hr: r = regex_for_path_from_i_to_j_through_k A i j k)

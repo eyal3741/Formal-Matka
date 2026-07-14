@@ -52,7 +52,8 @@ lemma Epsilon_Regex_to_εNFA :
         use A
         simp only [RegularExpression.one_def, RegularExpression.matches'_epsilon, Language.one_def, @Language.ext_iff]
         intro x
-        rw [@mem_singleton_iff, A.mem_accepts_iff_exists_path]
+        change x = [] ↔ x ∈ (A.accepts : Language α)
+        rw [A.mem_accepts_iff_exists_path]
 
         constructor
         case mp =>
@@ -90,7 +91,8 @@ lemma Char_Regex_to_εNFA (σ : α) :
 
         simp only [RegularExpression.matches'_char, @Language.ext_iff]
         intro x
-        rw [@mem_singleton_iff, A.mem_accepts_iff_exists_path]
+        change x = [σ] ↔ x ∈ (A.accepts : Language α)
+        rw [A.mem_accepts_iff_exists_path]
 
         constructor
         case mp =>
@@ -202,7 +204,9 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression α) :
         intro h
         cases h
         case inl h_in_A₁ =>
-            rw [A₁.accepts_iff_0mod2_accepts A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_in_A₁
+            rw [A₁.accepts_iff_0mod2_accepts A₁' rfl] at h_in_A₁
+            change x ∈ (A₁'.accepts : Language α) at h_in_A₁
+            rw [A₁'.mem_accepts_iff_exists_path] at h_in_A₁
             rw [A.mem_accepts_iff_exists_path]
             obtain ⟨ s₁, s₂, x', h_s₁, h_s₂, h_x', h_A₁'_path ⟩ := h_in_A₁
             use s₁, s₂, x'
@@ -212,7 +216,9 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression α) :
                     A.path_if_contains A₁' h_A_contains_A₁' s₁ s₂ x' h_A₁'_path ⟩
 
         case inr h_in_A₂ =>
-            rw [A₂.accepts_iff_1mod2_accepts A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_in_A₂
+            rw [A₂.accepts_iff_1mod2_accepts A₂' rfl] at h_in_A₂
+            change x ∈ (A₂'.accepts : Language α) at h_in_A₂
+            rw [A₂'.mem_accepts_iff_exists_path] at h_in_A₂
             rw [A.mem_accepts_iff_exists_path]
             obtain ⟨ s₁, s₂, x', h_s₁, h_s₂, h_x', h_A₂'_path ⟩ := h_in_A₂
             use s₁, s₂, x'
@@ -224,7 +230,8 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression α) :
     case mpr =>
         intro h_in_A
         rw [A.mem_accepts_iff_exists_path] at h_in_A
-        rw [Set.mem_union]
+        change x ∈ (A₁.accepts : Language α) ∨
+               x ∈ (A₂.accepts : Language α)
         obtain ⟨ qs, qf, x', h_qs, h_qf, h_x', h_A_path ⟩ := h_in_A
         by_cases (qs % 2) = 0
         case pos h_qs_is_0mod2 =>
@@ -265,7 +272,6 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression α) :
                 case nil qs => exact A₁'.isPath_nil.mpr rfl
                 case cons _ _ t q₁ q₂ c tail h_step h_path h_induction =>
                     unfold A at h_step
-                    simp only at *
                     simp_rw [εNFA_plus, h_q₁_0mod2] at h_step
                     simp at h_step
                     have : q₁ % 2 = t % 2 := if_0mod2_step_is_same_mod2 A₁' hA₁' q₁ t c h_step
@@ -316,7 +322,6 @@ lemma Plus_Regex_to_εNFA (r₁ r₂ : RegularExpression α) :
                 case nil qs => exact (εNFA.isPath_nil A₂').mpr rfl
                 case cons _ _ t q₁ q₂ c tail h_step h_path h_induction =>
                     unfold A at h_step
-                    simp only at *
                     simp_rw [εNFA_plus, h_q₁_1mod2] at h_step
                     simp at h_step
                     have : q₁ % 2 = t % 2 := if_1mod2_step_is_same_mod2 A₂' hA₂' q₁ t c h_step
@@ -631,8 +636,13 @@ lemma Comp_Regex_to_εNFA (r₁ r₂ : RegularExpression α) :
         intro h_in_image
         rw [image2] at h_in_image
         obtain ⟨ x₁, h_x₁, x₂, h_x₂, h_comp ⟩ := h_in_image
-        rw [accepts_iff_0mod2_accepts A₁ A₁' rfl, A₁'.mem_accepts_iff_exists_path] at h_x₁
-        rw [accepts_iff_1mod2_accepts A₂ A₂' rfl, A₂'.mem_accepts_iff_exists_path] at h_x₂
+        rw [accepts_iff_0mod2_accepts A₁ A₁' rfl] at h_x₁
+        change x₁ ∈ (A₁'.accepts : Language α) at h_x₁
+        rw [A₁'.mem_accepts_iff_exists_path] at h_x₁
+
+        rw [accepts_iff_1mod2_accepts A₂ A₂' rfl] at h_x₂
+        change x₂ ∈ (A₂'.accepts : Language α) at h_x₂
+        rw [A₂'.mem_accepts_iff_exists_path] at h_x₂
         obtain ⟨ qs₁, qf₁, x₁', h_qs₁, h_qf₁, h_x₁', h_ispath1 ⟩ := h_x₁
         obtain ⟨ qs₂, qf₂, x₂', h_qs₂, h_qf₂, h_x₂', h_ispath2 ⟩ := h_x₂
         rw [A.mem_accepts_iff_exists_path]

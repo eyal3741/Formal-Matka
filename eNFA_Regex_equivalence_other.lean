@@ -168,12 +168,18 @@ lemma path_iseqv_append (A : εNFA α ℕ) (qs qf t₁ t₂ : ℕ) (x x₁ x₂ 
     --     simp only [Path.isEqv, BEq.rfl, Bool.and_self, Bool.true_and]
     --     exact  ih
 
+structure path_split (A : εNFA α ℕ) (qs qf t : ℕ) (word_qs_qf: List (Option α)) (path_qs_qf: A.Path qs qf word_qs_qf) where
+  word_qs_t : List (Option α)
+  word_t_qf : List (Option α)
+  path_qs_t : A.Path qs t word_qs_t
+  path_t_qf : A.Path t qf word_t_qf
+  h_word_qs_qf : word_qs_qf = word_qs_t ++ word_t_qf
+  h_path_qs_qf : path_qs_qf = h_word_qs_qf▸(path_qs_t ++ path_t_qf)
+  h_t : t ∉ path_qs_t.supp
 
 lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option α)) (path_qs_qf: A.Path qs qf x') :
     t ∈ path_qs_qf.supp → qs = t ∨
-    ∃ (y' tail' : List (Option α)) (path_qs_t: A.Path qs t y') (path_t_qf: A.Path t qf tail'),
-     (x' = y' ++ tail') ∧ (path_qs_qf = path_qs_t ++ path_t_qf) ∧
-     t ∉ path_qs_t.supp := by
+    ∃ (p : path_split A qs qf t x' path_qs_qf), True := by
 
     intro h_t_in_path_qs_qf
     induction path_qs_qf
@@ -191,18 +197,26 @@ lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option �
                 clear h_induction
                 symm at h
                 subst h
-                use [c], tail
-                use path_qs_s, path_s_qf
-                have : path_qs_s.supp = {qs} := supp_of_singleton A qs s c path_qs_s
-                simp [this, h_qs_neq_t]
-                cases path_qs_s
-                case cons s h_step path_nil =>
-                    have := A.isPath_nil.mp (by use path_nil)
-                    subst this
-                    cases path_nil
-                    case nil =>
+                use {
+                    word_qs_t := [c]
+                    word_t_qf := tail
+                    path_qs_t := path_qs_s
+                    path_t_qf := path_s_qf
+                    h_word_qs_qf := (by simp only [List.cons_append, List.nil_append])
+                    h_path_qs_qf := (by
                         simp
-                        exact path_iseqv_rfl A s qf tail path_s_qf
+                        cases path_qs_s
+                        case cons t h_step path_t_s =>
+                            cases path_t_s
+                            case nil => simp
+                    )
+                    h_t := (by
+                        cases path_qs_s
+                        case cons t h_step path_t_s =>
+                            cases path_t_s
+                            case nil => simp [h_qs_neq_t]
+                    )
+                }
 
             case neg h_s_neq_t =>
                 simp[h_qs_neq_t] at h_t_in_path_qs_qf
@@ -210,31 +224,38 @@ lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option �
                 cases h_induction
                 case inl h => simp [symm h] at h_s_neq_t -- contradiction
                 case inr h_induction =>
-                    obtain ⟨ y', tail', path_s_t, path_t_qf, h_tail, heq_append, h_supp ⟩ := h_induction
+                    obtain ⟨ p ⟩ := h_induction
+                    obtain ⟨ y', tail', path_s_t, path_t_qf, h_tail, heq_append, h_supp ⟩ := p
                     let path_qs_t := Path.cons s qs t c y' h_step path_s_t
+                    use {
+                        word_qs_t := [c] ++ y'
+                        word_t_qf := tail'
+                        path_qs_t := path_qs_t
+                        path_t_qf := path_t_qf
+                        h_word_qs_qf := (by subst h_tail; simp only [List.cons_append, List.nil_append])
+                        h_path_qs_qf := (by
+                            cases path_qs_t
+                            case cons t' h_step' path_t'_t =>
+                                -- TODO
+                        sorry)
+                        h_t := (by sorry)
+                    }
 
-                    use [c] ++ y', tail', path_qs_t, path_t_qf
-                    simp [h_tail]
-                    cases path_qs_t
-                    case cons s' h_step path_s'_t =>
-                        simp_all
-                        have := path_iseqv_append A s'
-
-structure path_split (A : εNFA α ℕ) (i j k : ℕ) (x': List (Option α)) (path_ij: A.Path i j x') where
+structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Option α)) (path_ij: A.Path i j x') where
   word_ik : List (Option α)
   word_kk : List (Option α)
   word_kj : List (Option α)
   path_ik : A.Path i k word_ik
   path_kk : A.Path k k word_kk
   path_kj : A.Path k j word_kj
-  h_x' : x' = word_ik ++ word_kk ++ word_kj
-  h_path : path_ij = h_x'▸(path_ik ++ path_kk ++ path_kj)
+  h_word_ij : word_ij = word_ik ++ word_kk ++ word_kj
+  h_path_ij : path_ij = h_word_ij▸(path_ik ++ path_kk ++ path_kj)
   h_k_notin_ik : k ∉ path_ik.supp
   h_k_notin_kj : k ∉ path_kj.supp --TODO: remove first state
 
 
 lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (Option α)) (path_ij: A.Path i j x'):
-    (k ∈ path_ij.supp) → ∃ (p : path_split A i j k x' path_ij), True := by
+    (k ∈ path_ij.supp) → ∃ (p : path_split_full A i j k x' path_ij), True := by
     intro h_k_supp
     induction path_ij
     case nil => simp at h_k_supp
@@ -245,41 +266,39 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
             sorry
         case inr h_k_supp =>
             replace h_induction := h_induction h_k_supp
+            obtain ⟨ p ⟩ := h_induction
             obtain ⟨ word_tk, word_kk, word_kj, path_tk, path_kk, path_kj,
-                     h_equiv, h_k_notin_path_tk, h_notin_path_kj_tail⟩ := h_induction
+                     h_equiv, h_k_notin_path_tk, h_notin_path_kj_tail⟩ := p
             by_cases h_ik: k = i
             case pos =>
                 subst h_ik
-                use [], [c] ++ word_tk ++ word_kk, word_kj
                 have h_path_ik : Nonempty (A.Path k k []) := A.isPath_nil.mpr rfl
                 obtain ⟨ path_ik ⟩ := h_path_ik
-                use path_ik, Path.cons t k k c (word_tk ++ word_kk) h_step (Path.append A path_tk path_kk), path_kj
-                simp_all
-                constructor
-                case left =>
-                    unfold Path.isEqv
-                    split
-                    case h_1 => trivial
-                    case h_2 heq_1 heq_2 _ _ _ _ heq_path_cons heq_path_append =>
-                        simp at heq_1 heq_2
-                        obtain ⟨ h_c_c2, heq_1 ⟩ := heq_1
-                        obtain ⟨ h_c_c1, heq_2 ⟩ := heq_2
-                        subst h_c_c2 h_c_c1
-                        simp
-                        subst heq_2 heq_1
-                        simp at heq_path_cons
-                        obtain ⟨ h_1, h_2 ⟩ := heq_path_cons
-                        subst h_1 h_2
-                        sorry
-                    case h_3 =>
-                        sorry
-                case right =>
-                    cases path_ik
-                    case nil => simp
+                use {
+                    word_ik := []
+                    word_kk := [c] ++ word_tk ++ word_kk
+                    word_kj := word_kj
+                    path_ik := path_ik
+                    path_kk := (sorry)
+                    path_kj := path_kj
+                    h_word_ij := (by sorry)
+                    h_path_ij := (by sorry)
+                    h_k_notin_ik := (by sorry)
+                    h_k_notin_kj := (by sorry)
+                }
             case neg =>
-                use [c] ++ word_tk, word_kk, word_kj
-                use Path.cons t i k c word_tk h_step path_tk, path_kk, path_kj
-                simp_all
+                use {
+                    word_ik := [c] ++ word_tk
+                    word_kk := word_kk
+                    word_kj := word_kj
+                    path_ik := Path.cons t i k c word_tk h_step path_tk
+                    path_kk := path_kk
+                    path_kj := path_kj
+                    h_word_ij := (by simp_all)
+                    h_path_ij := (by simp_all)
+                    h_k_notin_ik := (by simp_all)
+                    h_k_notin_kj := (by simp_all)
+                }
 
 lemma regex_is_path_mp (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α) (hr: r = regex_for_path_from_i_to_j_through_k A i j k)
     (h_zero_step: ∀ (σ : Option α), A.step 0 σ = ∅) (h_step_zero: ∀ (q : ℕ) (σ : Option α), 0 ∉ A.step q σ):

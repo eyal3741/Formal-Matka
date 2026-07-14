@@ -141,33 +141,6 @@ lemma supp_of_singleton (A : εNFA α ℕ) (s t : ℕ) (c: (Option α)) (path: A
     have : path'.supp = ∅ := supp_of_nil A t' t path'
     simp [this]
 
-lemma path_iseqv_append (A : εNFA α ℕ) (qs qf t₁ t₂ : ℕ) (x x₁ x₂ : List (Option α)) (path_qs_qf: A.Path qs qf x)
-    (path_qs_t₁: A.Path qs t₁ x₁) (path_qs_t₂: A.Path qs t₂ x₁)
-    (path_t₁_qf: A.Path t₁ qf x₂) (path_t₂_qf: A.Path t₂ qf x₂) :
-    (path_qs_qf == path_qs_t₁ ++ path_t₁_qf) ∧ (path_qs_t₁ == path_qs_t₂) ∧ (path_t₁_qf == path_t₂_qf) →
-        (path_qs_qf == path_qs_t₂ ++ path_t₂_qf) := by
-    rintro ⟨ heq_qs_qf, heq_left, heq_right ⟩
-    cases path_qs_t₁
-    case nil =>
-        cases path_t₁_qf
-        case nil =>
-            simp at heq_qs_qf
-
-
-    sorry
-    -- induction path_qs_qf with
-    -- | nil =>
-    --     cases path_qs_t₁
-    --     case nil =>
-    --         cases path_t₁_qf
-    --         case nil =>
-    --             simp_all
-
-
-    -- | cons _ _ _ _ _ _ path ih =>
-    --     simp only [Path.isEqv, BEq.rfl, Bool.and_self, Bool.true_and]
-    --     exact  ih
-
 structure path_split (A : εNFA α ℕ) (qs qf t : ℕ) (word_qs_qf: List (Option α)) (path_qs_qf: A.Path qs qf word_qs_qf) where
   word_qs_t : List (Option α)
   word_t_qf : List (Option α)
@@ -179,7 +152,7 @@ structure path_split (A : εNFA α ℕ) (qs qf t : ℕ) (word_qs_qf: List (Optio
 
 lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option α)) (path_qs_qf: A.Path qs qf x') :
     t ∈ path_qs_qf.supp → qs = t ∨
-    ∃ (p : path_split A qs qf t x' path_qs_qf), True := by
+    ∃ (_ : path_split A qs qf t x' path_qs_qf), True := by
 
     intro h_t_in_path_qs_qf
     induction path_qs_qf
@@ -202,7 +175,7 @@ lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option �
                     word_t_qf := tail
                     path_qs_t := path_qs_s
                     path_t_qf := path_s_qf
-                    h_word_qs_qf := (by simp only [List.cons_append, List.nil_append])
+                    h_word_qs_qf := by simp only [List.cons_append, List.nil_append]
                     h_path_qs_qf := (by
                         simp
                         cases path_qs_s
@@ -226,23 +199,22 @@ lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option �
                 case inr h_induction =>
                     obtain ⟨ p ⟩ := h_induction
                     obtain ⟨ y', tail', path_s_t, path_t_qf, h_tail, heq_append, h_supp ⟩ := p
-                    let path_qs_t := Path.cons s qs t c y' h_step path_s_t
-
+                    have h_word_qs_qf : c :: tail = [c] ++ y' ++ tail' := by
+                        subst h_tail
+                        simp only [List.cons_append, List.nil_append]
                     use {
                         word_qs_t := [c] ++ y'
                         word_t_qf := tail'
-                        path_qs_t := path_qs_t
+                        path_qs_t := Path.cons s qs t c y' h_step path_s_t
                         path_t_qf := path_t_qf
-                        h_word_qs_qf := by
-                            subst tail
-                            simp
-                        h_path_qs_qf := by
+                        h_word_qs_qf := h_word_qs_qf
+                        h_path_qs_qf := (by
                             subst tail
                             simp only [List.cons_append, List.nil_append]
                             subst path_s_qf
                             rfl
-                        h_t := by
-                            simp [path_qs_t, h_qs_neq_t, h_supp]
+                        )
+                        h_t := by simp [h_qs_neq_t, h_supp]
                     }
 
 
@@ -267,9 +239,8 @@ structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Optio
   h_k_notin_ik : k ∉ path_ik.supp
   h_k_notin_kj : k ∉ path_kj.suppAfterStart
 
-
 lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (Option α)) (path_ij: A.Path i j x'):
-    (k ∈ path_ij.supp) → ∃ (p : path_split_full A i j k x' path_ij), True := by
+    (k ∈ path_ij.supp) → ∃ (_ : path_split_full A i j k x' path_ij), True := by
     intro h_k_supp
     induction path_ij
     case nil => simp at h_k_supp
@@ -323,21 +294,20 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                     path_ik := path_nil
                     path_kk := path_k_to_k ++ path_kk
                     path_kj := path_kj
-
-                    h_word_ij := by
+                    h_word_ij := (by
                         subst tail
                         simp [List.append_assoc]
-
-                    h_path_ij := by
+                    )
+                    h_path_ij := (by
                         subst tail
                         subst path_tj
                         cases path_nil
                         rfl
-
-                    h_k_notin_ik := by
+                    )
+                    h_k_notin_ik := (by
                         cases path_nil
                         simp
-
+                    )
                     h_k_notin_kj := h_notin_kj
                 }
         case inr h_k_supp =>

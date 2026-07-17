@@ -475,31 +475,44 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                         use path_kk_left ++ path_kk_right
 
                         intro k' h_k'
+                        simp at h_k'
 
-                        sorry
-                        -- cases A.supp_after_start_of_path_append path_kk_left path_kk_right h_k' -- TODO ASK YONATAN
-                        -- case inl h_k'_in_left =>
-                        --     have := h_path_kk_left k' h_k'_in_left
-                        --     omega
-                        -- case inr h_k'_in_right =>
-                        --     replace h_k'_in_right : k' = k ∨ k' ∈ path_kk_right.suppAfterStart := by
-                        --         unfold εNFA.Path.supp at h_k'_in_right
-                        --         split at h_k'_in_right
-                        --         case h_1 => trivial
-                        --         case h_2 =>
-                        --             simp at h_k'_in_right
-                        --             cases h_k'_in_right
-                        --             case inl h => left; exact h
-                        --             case inr h heq =>
-                        --                 right
-                        --                 unfold εNFA.Path.suppAfterStart
-                        --                 split
-                        --                 case h_1 => simp_all
-                        --                 case h_2 =>
-                        --                 sorry
-                        --     cases h_k'_in_right
-                        --     case inl => omega
-                        --     case inr h => exact h_path_kk_right k' h
+                        have h_decEq :
+                                (instDecidableEqNat : DecidableEq ℕ) =
+                                Classical.decEq ℕ := by
+                            apply Subsingleton.elim
+
+                        have h_append :=
+                            A.supp_after_start_of_path_append
+                                path_kk_left path_kk_right
+
+                        rw [← h_decEq] at h_append
+
+                        cases h_append h_k'
+
+                       -- cases A.supp_after_start_of_path_append path_kk_left path_kk_right h_k' -- TODO ASK YONATAN
+                        case inl h_k'_in_left =>
+                            have := h_path_kk_left k' h_k'_in_left
+                            omega
+                        case inr h_k'_in_right =>
+                            replace h_k'_in_right : k' = k ∨ k' ∈ path_kk_right.suppAfterStart := by
+                                unfold εNFA.Path.supp at h_k'_in_right
+                                split at h_k'_in_right
+                                case h_1 => trivial
+                                case h_2 =>
+                                    simp at h_k'_in_right
+                                    cases h_k'_in_right
+                                    case inl h => left; exact h
+                                    case inr h heq =>
+                                        right
+                                        unfold εNFA.Path.suppAfterStart
+                                        split
+                                        case h_1 => simp_all
+                                        case h_2 =>
+                                        sorry
+                            cases h_k'_in_right
+                            case inl => omega
+                            case inr h => exact h_path_kk_right k' h
 
                 use xᵢₖ' ++ xₖₖ' ++ xₖⱼ'
                 simp [symm h_xᵢₖ', symm h_xₖⱼ'] at h_x

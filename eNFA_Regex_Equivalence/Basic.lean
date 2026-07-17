@@ -142,10 +142,9 @@ def Path.suppAfterStart [DecidableEq σ] {M : εNFA α σ} {s t : σ} {x : List 
   | Path.nil _ => ∅
   | Path.cons _ _ _ _ _ _ p => p.supp
 
-lemma supp_after_start_of_path_append {A : εNFA α σ} {qs qf t q : σ} {x₁ x₂: List (Option α)}
-    (path₁: A.Path qs t x₁) (path₂: A.Path t qf x₂) : q ∈ (path₁ ++ path₂).suppAfterStart →
+lemma supp_after_start_of_path_append {A : εNFA α σ} {qs qf t} {x₁ x₂: List (Option α)}
+    (path₁: A.Path qs t x₁) (path₂: A.Path t qf x₂) (q : σ) : q ∈ (path₁ ++ path₂).suppAfterStart →
     q ∈ path₁.suppAfterStart ∨ q ∈ path₂.supp := by
-
     intro h_q_in_append
     cases path₁
     case nil =>

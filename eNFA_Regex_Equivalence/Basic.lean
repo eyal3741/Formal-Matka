@@ -100,87 +100,85 @@ def Path.append {M : εNFA α σ} {qs qf t : σ} {x y : List (Option α)} :
 
 infixl:65 " ++ " => Path.append
 
-
-lemma path_iseqv_rfl {A : εNFA α σ} {s t : σ} {x: List (Option α)} (path: A.Path s t x): Path.isEqv path path := by
-    induction path with
-    | nil => simp only [Path.isEqv, BEq.rfl]
-    | cons _ _ _ _ _ _ path ih =>
-        simp only [Path.isEqv, BEq.rfl, Bool.and_self, Bool.true_and]
-        exact  ih
-
-lemma path_iseqv_symm {A : εNFA α σ} {s₁ s₂ t₁ t₂ : σ} {x: List (Option α)}
-    (path₁: A.Path s₁ t₁ x) (path₂: A.Path s₂ t₂ x) : path₁ == path₂ ↔ path₂ == path₁ := by
+lemma supp_of_path_append {A : εNFA α σ} {qs qf t q : σ} {x₁ x₂: List (Option α)}
+    (path₁: A.Path qs t x₁) (path₂: A.Path t qf x₂) :
+    q ∈ (path₁ ++ path₂).supp ↔ q ∈ path₁.supp ∨ q ∈ path₂.supp := by
     constructor
     case mp =>
-        intro h
-        induction path₁ generalizing s₂
+        intro h_q_in_append
+        induction path₁
         case nil =>
-            unfold Path.isEqv
-            split
-            case h_1 => simp_all only [Path.isEqv, beq_iff_eq, BEq.rfl]
-            case h_2 => simp_all only [List.cons.injEq, List.nil_eq, reduceCtorEq]
-            case h_3 => simp_all only [heq_eq_eq, implies_true, Path.isEqv, Bool.false_eq_true]
-        case cons u₁ t₁ s₁ c tail h_step path ih =>
-            cases path₂
-            case cons _ _ path₂ =>
-            simp at h ⊢
-            obtain ⟨ h_t₁_s₂, h ⟩ := h
-            replace ih := ih path₂ h
-            exact ⟨ symm h_t₁_s₂, ih ⟩
+            simp at h_q_in_append ⊢
+            exact h_q_in_append
+        case cons t' qs t c h_step path_tail₁ h_induction =>
+            simp at h_q_in_append
+            cases h_q_in_append
+            case inl h_q_t₁ =>
+                left
+                simp
+                left
+                exact h_q_t₁
+            case inr h =>
+                simp
+                replace h_induction := h_induction path₂ h
+                cases h_induction
+                case inl h => simp [h]
+                case inr h => simp [h]
     case mpr =>
         intro h
-        induction path₂ generalizing s₁
+        induction path₁
         case nil =>
-            unfold Path.isEqv
-            split
-            case h_1 => simp_all only [Path.isEqv, beq_iff_eq, BEq.rfl]
-            case h_2 => simp_all only [List.cons.injEq, List.nil_eq, reduceCtorEq]
-            case h_3 => simp_all only [heq_eq_eq, implies_true, Path.isEqv, Bool.false_eq_true]
-        case cons u₂ t₂ s₂ c tail h_step path ih =>
-            cases path₁
-            case cons _ _ path₁ =>
             simp at h ⊢
-            obtain ⟨ h_t₂_s₁, h ⟩ := h
-            replace ih := ih path₁ h
-            exact ⟨ symm h_t₂_s₁, ih ⟩
+            exact h
+        case cons t' qs t c h_step path_tail₁ h_induction =>
+            simp at h ⊢
+            rw [or_assoc] at h
+            cases h
+            case inl h => left;  exact h
+            case inr h => right; exact h_induction path₂ h
 
-def path_is_nil {A : εNFA α σ} {s t : σ} {x: List (Option α)} : A.Path s t x → Bool
-| Path.nil _ => true
-| _ => false
+def Path.suppAfterStart [DecidableEq σ] {M : εNFA α σ} {s t : σ} {x : List (Option α)} :
+    M.Path s t x → Finset σ
+  | Path.nil _ => ∅
+  | Path.cons _ _ _ _ _ _ p => p.supp
 
-lemma path_iseqv_nil {A : εNFA α σ} {s₁ s₂ t₁ t₂ : σ} {x: List (Option α)}
-    (path₁: A.Path s₁ t₁ x) (path₂: A.Path s₂ t₂ x) :
-    path₁ == path₂ ∧ path_is_nil path₁ → path_is_nil path₂ := by
-    rintro ⟨ h_path, h_nil ⟩
+lemma supp_after_start_of_path_append {A : εNFA α σ} {qs qf t q : σ} {x₁ x₂: List (Option α)}
+    (path₁: A.Path qs t x₁) (path₂: A.Path t qf x₂) : q ∈ (path₁ ++ path₂).suppAfterStart →
+    q ∈ path₁.suppAfterStart ∨ q ∈ path₂.supp := by
+
+    intro h_q_in_append
     cases path₁
     case nil =>
-        unfold path_is_nil
-        split
+        right
+        simp [Path.suppAfterStart] at h_q_in_append
+        split at h_q_in_append
         case h_1 => trivial
-        case h_2 t tail s path_tail path_nil h =>
-            simp at h
-            have := h (A.isPath_nil.mp (by use path_nil)).symm
-            cases path_nil
-            case nil => simp at this -- contradiction
-    case cons => contradiction
+        case h_2 => simp [h_q_in_append]
 
-lemma path_iseqv_trans {A : εNFA α σ} {s₁ s₂ s₃ t₁ t₂ t₃ : σ} {x: List (Option α)}
-    (path₁: A.Path s₁ t₁ x) (path₂: A.Path s₂ t₂ x) (path₃: A.Path s₃ t₃ x): path₁ == path₂ ∧ path₂ == path₃ → path₁ == path₃ := by
-    rintro ⟨ h_eq₁₂, h_eq₂₃ ⟩
-    --apply (path_iseqv_symm path₂ path₃).mp at h_eq₂₃
-    unfold Path.isEqv
-    split
-    case h_1 path₁₁ path₂₂ =>
-        simp
-        have := path_iseqv_nil (Path.nil t₁) path₂ ⟨ h_eq₁₂, by
-            unfold path_is_nil
-            split
-            case h_1 => trivial
-            case h_2 => trivial ⟩
-        have := (A.isPath_nil.mp (by use path₂)).symm
-        sorry
-    case h_2 => sorry
-    case h_3 => sorry
+    case cons t' c tail₁ path_tail₁=>
+        simp at h_q_in_append
+        exact (supp_of_path_append path_tail₁ path₂).mp h_q_in_append
+
+lemma if_supp_after_start_then_supp {A : εNFA α σ} {s t : σ} {x: List (Option α)}
+    (path: A.Path s t x) : path.suppAfterStart ⊆ path.supp := by
+    cases path
+    case nil  => simp [Path.suppAfterStart]
+    case cons => simp [Path.suppAfterStart]
+
+lemma if_supp_then_start_or_supp_after_start {A : εNFA α σ} {s t q : σ} {x: List (Option α)}
+    (path: A.Path s t x) : q ∈ path.supp → q = s ∨ q ∈ path.suppAfterStart := by
+    intro h_q
+    unfold Path.supp at h_q
+    split at h_q
+    case h_1 => contradiction
+    case h_2 =>
+        simp at h_q
+        cases h_q
+        case inl h => left; exact h
+        case inr h =>
+            right
+            simp [Path.suppAfterStart]
+            exact h
 
 ---------------------------------------
 ---------- Automata Doubling ----------

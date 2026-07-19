@@ -507,31 +507,20 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                             apply Subsingleton.elim
 
                         have h_append := A.supp_after_start_of_path_append path_kk_left path_kk_right k'
-                        rw [h_decEq] at h_k' h_path_kk_left
+                        rw [h_decEq] at h_k' h_path_kk_left h_path_kk_right
 
                         cases h_append h_k'
                         case inl h_k'_in_left =>
                             have := h_path_kk_left k' h_k'_in_left
                             omega
                         case inr h_k'_in_right =>
-                            replace h_k'_in_right : k' = k ∨ k' ∈ path_kk_right.suppAfterStart := by
-                                unfold εNFA.Path.supp at h_k'_in_right
-                                split at h_k'_in_right
-                                case h_1 => trivial
-                                case h_2 =>
-                                    simp at h_k'_in_right
-                                    cases h_k'_in_right
-                                    case inl h => left; exact h
-                                    case inr h heq =>
-                                        right
-                                        unfold εNFA.Path.suppAfterStart
-                                        split
-                                        case h_1 => simp_all
-                                        case h_2 =>
-                                        sorry
-                            cases h_k'_in_right
-                            case inl => omega
-                            case inr h => exact h_path_kk_right k' h
+                            have h_cases :=
+                                if_q_in_supp path_kk_right h_k'_in_right
+                            cases h_cases with
+                            | inl h_eq =>
+                                omega
+                            | inr h_after =>
+                                exact h_path_kk_right k' h_after
 
                 use xᵢₖ' ++ xₖₖ' ++ xₖⱼ'
                 simp [symm h_xᵢₖ', symm h_xₖⱼ'] at h_x
@@ -547,16 +536,44 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                 obtain ⟨ path_kj, h_path_kj ⟩ := h_path_kj
                 use path_ik ++ path_kk ++ path_kj
                 intro k' h_k'
-                cases path_ik
-                case nil =>
-                    cases path_kj
-                    case nil => sorry
-                    case cons => sorry
-                case cons p =>
-                    simp [Path.suppAfterStart] at h_k'
-                    -- have := (supp_of_path_append p (path_kk ++ path_kj)).mp h_k'
-                    -- TODO: Associativity of ++ for paths
-                    sorry
+                have h_decEq :
+                    (instDecidableEqNat : DecidableEq ℕ) =
+                    Classical.decEq ℕ := by
+                 apply Subsingleton.elim
+
+                have h_outer :=
+                A.supp_after_start_of_path_append
+                    (path_ik ++ path_kk) path_kj k'
+
+                rw [h_decEq] at h_k' h_path_ik h_path_kk h_path_kj
+
+                cases h_outer h_k' with
+                | inl h_in_ik_kk =>
+                    have h_inner :=
+                    A.supp_after_start_of_path_append
+                        path_ik path_kk k'
+
+                    cases h_inner h_in_ik_kk with
+                    | inl h_in_ik =>
+                        have h_bound := h_path_ik k' h_in_ik
+                        omega
+
+                    | inr h_in_kk =>
+                        cases if_q_in_supp path_kk h_in_kk with
+                        | inl h_eq =>
+                            omega
+                        | inr h_after =>
+                            exact h_path_kk k' h_after
+
+                | inr h_in_kj =>
+                    cases if_q_in_supp path_kj h_in_kj with
+                    | inl h_eq =>
+                        omega
+                    | inr h_after =>
+                        have h_bound := h_path_kj k' h_after
+                        omega
+
+
 
     case mpr =>
         intro h

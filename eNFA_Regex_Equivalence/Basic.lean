@@ -179,6 +179,11 @@ lemma if_supp_then_start_or_supp_after_start {A : εNFA α σ} {s t q : σ} {x: 
             simp [Path.suppAfterStart]
             exact h
 
+lemma if_q_in_supp {A : εNFA α σ} {s t q : σ} {x: List (Option α)} (path : A.Path s t x)
+      (hq : q ∈ path.supp):  q = s ∨ q ∈ path.suppAfterStart := by
+       cases path <;> simp_all [Path.suppAfterStart]
+
+
 ---------------------------------------
 ---------- Automata Doubling ----------
 ---------------------------------------

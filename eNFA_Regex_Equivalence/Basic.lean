@@ -19,9 +19,6 @@ set_option linter.unusedVariables false
 ---------- Helpfull tools ----------
 ------------------------------------
 
-def is_alone_in_set (set: Set ℕ) (n: ℕ):= set = { n }
-
-
 namespace εNFA
 
 -----------------------------------------
@@ -30,78 +27,104 @@ namespace εNFA
 
 variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
 
--- @[simp]
--- def Path.length [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → Nat
---   | Path.nil s => 0
---   | cons _ _ _ _ _ _ p => HAdd.hAdd (length p) 1
-
--- @[simp]
--- def Path.steps [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List (σ × Option α × Prop)
---   | nil s => []
---   | cons _ _ _ c _ _ p => [(s, c, (t ∈ M.step s c))] ++ p.steps
-
--- def Path.steps.states [DecidableEq σ] : List (σ × Option α × Prop) → List σ
---   | List.nil => []
---   | List.cons head tail => [head.1] ++ states tail
-
--- def Path.steps.word [DecidableEq σ] : List (σ × Option α × Prop) → List (Option α)
---   | List.nil => []
---   | List.cons head tail => [head.2.1] ++ word tail
-
--- @[simp]
--- def Path.states [DecidableEq σ] {s t : σ} {x : List (Option α)} : M.Path s t x → List σ
---   | nil s => []
---   | cons _ _ _ _ _ _ p => [s] ++ p.states
-
--- lemma sub_stepList_is_path (A : εNFA α ℕ) (qs qf : ℕ) (x : List (Option α)) (path: A.Path qs qf x)
---     (SL : List (ℕ × Option α × Prop)) (hSL: SL ≠ []) :
---     SL.IsInfix path.steps → ∃ subpath, subpath = A.Path (SL.head hSL).1 (SL.getLast hSL).1 := by
---     simp only [↓existsAndEq, implies_true]
-
-@[simp]
-def Path.isEqv [BEq α] [BEq σ] {M : εNFA α σ} {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
-  | Path.nil s₁, Path.nil s₂ => s₁ == s₂
-  | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
-      c₁ == c₂ && s₁ == s₂ && Path.isEqv path_y path_x
-  | _, _ => false
-
-infixl:50 " == " => Path.isEqv
-
--- @[simp]
--- def Path.isPrefixOf [BEq α] [BEq σ] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
---   | Path.nil s₁, _  => s₁ == s₂
---   | _, Path.nil s₂  => false
---   | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
---       c₁ == c₂ && s₁ == s₂ && Path.isPrefixOf path_y path_x
-
--- noncomputable
--- def Path.isSuffixOf [BEq α] [BEq σ] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
---   | Path.nil t₁, _  => t₁ == t₂
---   | _, Path.nil t₂  => false
---   | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
---     if path_x.length = path_y.length then
---         c₁ == c₂ && s₁ == s₂ && path_y == path_x
---     else
---         Path.isSuffixOf (Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y) path_x
-
--- noncomputable
--- def Path.isInfixOf [BEq α] [BEq σ] {s₁ t₁ s₂ t₂ : σ} {x y : List (Option α)} : M.Path s₁ t₁ y → M.Path s₂ t₂ x → Bool
---   | Path.nil s₁, _  => s₁ == s₂
---   | _, Path.nil s₂  => false
---   | Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y, Path.cons u₂ s₂ t₂ c₂ c_x d_x path_x =>
---       c₁ == c₂ && s₁ == s₂ && Path.isPrefixOf M path_y path_x ||
---       Path.isInfixOf (Path.cons u₁ s₁ t₁ c₁ c_y d_y path_y) path_x
-
 @[simp]
 def Path.append {M : εNFA α σ} {qs qf t : σ} {x y : List (Option α)} :
     (path_y : M.Path qs t y) → (path_x : M.Path t qf x) → M.Path qs qf (y ++ x)
-  | Path.nil s, p => p
+  | Path.nil _, p => p
   | Path.cons u _ _ c tail_y h_step path_tail, p => Path.cons u qs qf c (tail_y ++ x) h_step (Path.append path_tail p)
 
 infixl:65 " ++ " => Path.append
 
-lemma supp_of_path_append {A : εNFA α σ} {qs qf t q : σ} {x₁ x₂: List (Option α)}
-    (path₁: A.Path qs t x₁) (path₂: A.Path t qf x₂) :
+def reverse (M : εNFA α σ) : (εNFA α σ) := {
+    start  := M.accept
+    accept := M.start
+    step   := fun q c => { q' | q ∈ M.step q' c}
+}
+
+lemma reverse_of_reverse_rfl (M : εNFA α σ) : M.reverse.reverse = M := by
+    simp [εNFA.reverse]
+
+lemma List.reverse_of_reverse_rfl (L : List (Option α)) : L.reverse.reverse = L := by
+    simp
+
+def Path.reverse {M : εNFA α σ} {s u : σ} {x : List (Option α)} :
+    (path : M.Path s u x) → M.reverse.Path u s x.reverse
+  | Path.nil s => Path.nil s
+  | Path.cons t s u c tail h_step p => by
+        simp
+        replace h_step : s ∈ M.reverse.step t c := by simp [εNFA.reverse, h_step]
+        let p_c : M.reverse.Path t s [c] := (@Path.cons α σ M.reverse) s t s c [] h_step (@Path.nil α σ M.reverse s)
+        use p.reverse ++ p_c
+
+lemma path_reverse_of_reverse_rfl {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
+    path = (List.reverse_of_reverse_rfl x)▸(reverse_of_reverse_rfl M)▸path.reverse.reverse := by
+    induction path
+    case nil s => simp [Path.reverse]
+    case cons p ih =>
+        simp_rw [Path.reverse]
+
+        sorry
+
+lemma path_append_cons_nil {M : εNFA α σ} {t s u : σ} {c : Option α} {x : List (Option α)}
+    { h_step : t ∈ M.step s c } { p : M.Path t u x }
+    (path : M.Path s u (c :: x)) : (path = Path.cons t s u c x h_step p) →
+    (List.append_nil (c :: x)) ▸ (Path.cons t s u c x h_step p ++ Path.nil u) =
+    (Path.cons t s u c x h_step ((List.append_nil x)▸(p ++ Path.nil u))) := by
+    intro h_path
+    cases p
+    case nil => simp
+    case cons t' c' tail' h_step' p' =>
+        rw [← h_path]
+        --apply path_append_cons_nil
+        sorry
+
+
+lemma path_append_nil {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
+    path = (List.append_nil x)▸(path ++ Path.nil u) := by
+    induction path
+    case nil  => simp
+    case cons t s u c tail h_step p ih =>
+        have : (List.append_nil (c :: tail)) ▸ (Path.cons t s u c tail h_step p ++ Path.nil u) =
+                (Path.cons t s u c tail h_step ((List.append_nil tail)▸(p ++ Path.nil u))) := by
+            rw [← ih]
+            cases p
+            case nil => simp
+            case cons t' s' u' c' tail' p' =>
+                symm
+                exact path_append_nil (Path.cons t s u c (u' :: c') h_step (Path.cons s' t u u' c' tail' p'))
+
+        rw [this]
+        simp
+        exact ih
+termination_by x.length
+decreasing_by
+    simp
+    sorry
+
+lemma path_append_assoc {M : εNFA α σ} {q₁ q₂ q₃ q₄ : σ} {x₁ x₂ x₃ : List (Option α)}
+    (path₁ : M.Path q₁ q₂ x₁) (path₂ : M.Path q₂ q₃ x₂) (path₃ : M.Path q₃ q₄ x₃) :
+    (path₁ ++ path₂) ++ path₃ = (List.append_assoc x₁ x₂ x₃)▸(path₁ ++ (path₂ ++ path₃)) := by
+    induction path₁
+    case nil => simp
+    case cons tail₁ _ p ih =>
+        replace ih := ih path₂
+        sorry
+
+structure Path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
+    (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) where
+    word_qs_s : List (Option α)
+    word_t_qf : List (Option α)
+    path_qs_s : M.Path qs s word_qs_s
+    path_t_qf : M.Path t qf word_t_qf
+    h_word : word_qs_qf = word_qs_s ++ word_s_t ++ word_t_qf
+    h_path : path_qs_qf = h_word▸(path_qs_s ++ path_s_t ++ path_t_qf)
+
+def Path.contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
+    (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) :=
+    ∃ (_ : Path_contains path_qs_qf path_s_t), True
+
+lemma supp_of_path_append {M : εNFA α σ} {qs qf t : σ} {x₁ x₂: List (Option α)}
+    (path₁: M.Path qs t x₁) (path₂: M.Path t qf x₂) (q : σ) :
     q ∈ (path₁ ++ path₂).supp ↔ q ∈ path₁.supp ∨ q ∈ path₂.supp := by
     constructor
     case mp =>
@@ -137,13 +160,64 @@ lemma supp_of_path_append {A : εNFA α σ} {qs qf t q : σ} {x₁ x₂: List (O
             case inl h => left;  exact h
             case inr h => right; exact h_induction path₂ h
 
+lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ} {word₁ word₂ word₃ : List (Option α)}
+    (path₁ : M.Path s₁ t₁ word₁) (path₂ : M.Path s₂ t₂ word₂) (path₃ : M.Path s₃ t₃ word₃) :
+    path₁.contains path₂ ∧ path₂.contains path₃ → path₁.contains path₃ := by
+    rintro ⟨ h₁, h₂ ⟩
+    obtain ⟨ h₁ ⟩ := h₁
+    obtain ⟨ h₂ ⟩ := h₂
+    obtain ⟨ word_qs₁_qs₂, word_qf₂_qf₁,
+             path_qs₁_qs₂, path_qf₂_qf₁,
+             h_word₁₂, h_path₁₂ ⟩ := h₁
+    obtain ⟨ word_qs₂_qs₃, word_qf₃_qf₂,
+             path_qs₂_qs₃, path_qf₃_qf₂,
+             h_word₂₃, h_path₂₃ ⟩ := h₂
+    unfold Path.contains
+    use {
+        word_qs_s := word_qs₁_qs₂ ++ word_qs₂_qs₃
+        word_t_qf := word_qf₃_qf₂ ++ word_qf₂_qf₁
+        path_qs_s := path_qs₁_qs₂ ++ path_qs₂_qs₃
+        path_t_qf := path_qf₃_qf₂ ++ path_qf₂_qf₁
+        h_word := by subst word₂; simp [h_word₁₂]
+        h_path := (by
+            have h_word : word₁ = word_qs₁_qs₂ ++ word_qs₂_qs₃ ++ word₃ ++ (word_qf₃_qf₂ ++ word_qf₂_qf₁) := by
+                subst word₂
+                simp [h_word₁₂]
+
+            subst path₁ path₂ word₂ word₁
+            sorry
+        )
+    }
+
+lemma supp_of_path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
+    (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) (q : σ):
+    path_qs_qf.contains path_s_t → q ∈ path_s_t.supp → q ∈ path_qs_qf.supp := by
+    intro h h_q
+    obtain ⟨ h ⟩ := h
+    obtain ⟨ word_qs_s, word_t_qf,
+             path_qs_s, path_t_qf,
+             h_word, h_path ⟩ := h
+
+    induction path_qs_s generalizing word_qs_qf word_s_t
+    case nil =>
+        simp at h_path
+        have := (supp_of_path_append path_s_t path_t_qf q).mpr (by left; exact h_q)
+        subst h_word h_path
+        simp [this]
+    case cons p ih =>
+        simp at h_path
+        subst h_word h_path
+        simp
+        right
+        exact ih (p ++ path_s_t ++ path_t_qf) path_s_t h_q rfl rfl
+
 def Path.suppAfterStart [DecidableEq σ] {M : εNFA α σ} {s t : σ} {x : List (Option α)} :
     M.Path s t x → Finset σ
   | Path.nil _ => ∅
   | Path.cons _ _ _ _ _ _ p => p.supp
 
-lemma supp_after_start_of_path_append {A : εNFA α σ} {qs qf t} {x₁ x₂: List (Option α)}
-    (path₁: A.Path qs t x₁) (path₂: A.Path t qf x₂) (q : σ) : q ∈ (path₁ ++ path₂).suppAfterStart →
+lemma supp_after_start_of_path_append {M : εNFA α σ} {qs qf t} {x₁ x₂: List (Option α)}
+    (path₁: M.Path qs t x₁) (path₂: M.Path t qf x₂) (q : σ) : q ∈ (path₁ ++ path₂).suppAfterStart →
     q ∈ path₁.suppAfterStart ∨ q ∈ path₂.supp := by
     intro h_q_in_append
     cases path₁
@@ -156,16 +230,20 @@ lemma supp_after_start_of_path_append {A : εNFA α σ} {qs qf t} {x₁ x₂: Li
 
     case cons t' c tail₁ path_tail₁=>
         simp at h_q_in_append
-        exact (supp_of_path_append path_tail₁ path₂).mp h_q_in_append
+        exact (supp_of_path_append path_tail₁ path₂ q).mp h_q_in_append
 
-lemma if_supp_after_start_then_supp {A : εNFA α σ} {s t : σ} {x: List (Option α)}
-    (path: A.Path s t x) : path.suppAfterStart ⊆ path.supp := by
+lemma if_supp_after_start_then_supp {M : εNFA α σ} {s t : σ} {x: List (Option α)}
+    (path: M.Path s t x) (q : σ): q ∈ path.suppAfterStart → q ∈ path.supp := by
+    intro h_q
     cases path
-    case nil  => simp [Path.suppAfterStart]
-    case cons => simp [Path.suppAfterStart]
+    case nil  => simp [Path.suppAfterStart] at h_q
+    case cons =>
+        simp [Path.suppAfterStart] at h_q ⊢
+        right
+        exact h_q
 
-lemma if_supp_then_start_or_supp_after_start {A : εNFA α σ} {s t q : σ} {x: List (Option α)}
-    (path: A.Path s t x) : q ∈ path.supp → q = s ∨ q ∈ path.suppAfterStart := by
+lemma if_supp_then_start_or_supp_after_start {M : εNFA α σ} {s t : σ} {x: List (Option α)}
+    (path: M.Path s t x) (q : σ) : q ∈ path.supp → q = s ∨ q ∈ path.suppAfterStart := by
     intro h_q
     unfold Path.supp at h_q
     split at h_q
@@ -478,10 +556,6 @@ def to_singular (A : εNFA α ℕ) : εNFA α ℕ := {
                 ∅
     : εNFA α ℕ
 }
-
-
-def is_singular (A : εNFA α ℕ) :=
-    (∃s: ℕ, is_alone_in_set A.start s) ∧ (∃a: ℕ, is_alone_in_set A.accept a)
 
 lemma to_singular_contains (A: εNFA α ℕ): (to_singular A).contains A.to_1mod2 := by
     unfold εNFA.contains

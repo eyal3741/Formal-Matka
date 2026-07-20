@@ -56,14 +56,14 @@ def Path.reverse {M : εNFA α σ} {s u : σ} {x : List (Option α)} :
         let p_c : M.reverse.Path t s [c] := (@Path.cons α σ M.reverse) s t s c [] h_step (@Path.nil α σ M.reverse s)
         use p.reverse ++ p_c
 
-lemma path_reverse_of_reverse_rfl {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
-    path = (List.reverse_of_reverse_rfl x)▸(reverse_of_reverse_rfl M)▸path.reverse.reverse := by
-    induction path
-    case nil s => simp [Path.reverse]
-    case cons p ih =>
-        simp
-        sorry
-        -- Maybe not needed, don't solve yet
+-- lemma path_reverse_of_reverse_rfl {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
+--     path = (List.reverse_of_reverse_rfl x)▸(reverse_of_reverse_rfl M)▸path.reverse.reverse := by
+--     induction path
+--     case nil s => simp [Path.reverse]
+--     case cons p ih =>
+--         simp
+--         sorry
+--         -- Maybe not needed, don't solve yet
 
 lemma path_append_cons_nil {M : εNFA α σ} {qs qf t : σ} {c : Option α} {x : List (Option α)}
     { h_step : t ∈ M.step qs c } { p : M.Path t qf x } { path_nil_qf : M.Path qf qf []} :
@@ -88,68 +88,67 @@ lemma path_append_nil {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path 
         rw [this]
         simp
         exact ih
-
 lemma path_append_cons_assoc {M : εNFA α σ} {qs qf t s : σ} {c : Option α} {x₁ x₂ : List (Option α)}
     {h_step₁ : t ∈ M.step qs c} {p₁ : M.Path t s x₁} {path₂ : M.Path s qf x₂} :
     Path.cons t qs qf c (x₁ ++ x₂) h_step₁ (p₁ ++ path₂) =
     ((Path.cons t qs s c x₁ h_step₁ p₁) ++ path₂) := by
     simp only [Path.append]
 
-lemma path_append_assoc {M : εNFA α σ} {q₁ q₂ q₃ q₄ : σ} {x₁ x₂ x₃ : List (Option α)}
-    {path₁ : M.Path q₁ q₂ x₁} {path₂ : M.Path q₂ q₃ x₂} {path₃ : M.Path q₃ q₄ x₃} :
-    (path₁ ++ path₂) ++ path₃ = ((List.append_assoc x₁ x₂ x₃)▸(path₁ ++ (path₂ ++ path₃))) := by
-    induction path₁
-    case nil =>
-        induction path₂
-        case nil => simp
-        case cons p ih => simp
-    case cons t₁ q₁ q₂ c₁ tail₁ h_step₁ p₁ ih₁ =>
-        replace ih₁ := @ih₁ path₂
-        induction path₂
-        case nil q =>
-            simp at ih₁
-            let := (List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃))
-            -- have : ((List.append_assoc tail₁ [] x₃) ▸ ((Path.cons t₁ q₁ q c₁ tail₁ h_step₁ p₁) ++ (Path.nil q ++ path₃))) =
-            --      (Path.cons t₁ q₁ q₄ c₁ (tail₁ ++ [] ++ x₃) h_step₁ ((List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃)))) := by
-            --     sorry
-            -- rw [← this]
-            --     -- path_append_cons_assoc
-            -- rw [← path_append_cons_assoc]
-            -- rw [← path_append_cons_assoc]
-            -- rw [← path_append_cons_assoc]
-            -- simp [ih₁]
-            sorry
-        case cons =>
-            simp
-            sorry
+-- lemma path_append_assoc {M : εNFA α σ} {q₁ q₂ q₃ q₄ : σ} {x₁ x₂ x₃ : List (Option α)}
+--     {path₁ : M.Path q₁ q₂ x₁} {path₂ : M.Path q₂ q₃ x₂} {path₃ : M.Path q₃ q₄ x₃} :
+--     (path₁ ++ path₂) ++ path₃ = ((List.append_assoc x₁ x₂ x₃)▸(path₁ ++ (path₂ ++ path₃))) := by
+--     induction path₁
+--     case nil =>
+--         induction path₂
+--         case nil => simp
+--         case cons p ih => simp
+--     case cons t₁ q₁ q₂ c₁ tail₁ h_step₁ p₁ ih₁ =>
+--         replace ih₁ := @ih₁ path₂
+--         induction path₂
+--         case nil q =>
+--             simp at ih₁
+--             let := (List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃))
+--             -- have : ((List.append_assoc tail₁ [] x₃) ▸ ((Path.cons t₁ q₁ q c₁ tail₁ h_step₁ p₁) ++ (Path.nil q ++ path₃))) =
+--             --      (Path.cons t₁ q₁ q₄ c₁ (tail₁ ++ [] ++ x₃) h_step₁ ((List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃)))) := by
+--             --     sorry
+--             -- rw [← this]
+--             --     -- path_append_cons_assoc
+--             -- rw [← path_append_cons_assoc]
+--             -- rw [← path_append_cons_assoc]
+--             -- rw [← path_append_cons_assoc]
+--             -- simp [ih₁]
+--             sorry
+--         case cons =>
+--             simp
+--             sorry
 
-lemma path_append_assoc2 {M : εNFA α σ} {q₁ q₂ q₃ q₄ : σ} {x₁ x₂ x₃ : List (Option α)}
-    {path₁ : M.Path q₁ q₂ x₁} {path₂ : M.Path q₂ q₃ x₂} {path₃ : M.Path q₃ q₄ x₃} :
-    ((List.append_assoc x₁ x₂ x₃)▸((path₁ ++ path₂) ++ path₃)) = (path₁ ++ (path₂ ++ path₃)) := by
-    induction path₁
-    case nil =>
-        induction path₂
-        case nil => simp
-        case cons p ih => simp
-    case cons t₁ q₁ q₂ c₁ tail₁ h_step₁ p₁ ih₁ =>
-        replace ih₁ := @ih₁ path₂
-        induction path₂
-        case nil q =>
-            simp at ih₁
-            let := (List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃))
-            -- have : ((List.append_assoc tail₁ [] x₃) ▸ ((Path.cons t₁ q₁ q c₁ tail₁ h_step₁ p₁) ++ (Path.nil q ++ path₃))) =
-            --      (Path.cons t₁ q₁ q₄ c₁ (tail₁ ++ [] ++ x₃) h_step₁ ((List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃)))) := by
-            --     sorry
-            -- rw [← this]
-            --     -- path_append_cons_assoc
-            -- rw [← path_append_cons_assoc]
-            -- rw [← path_append_cons_assoc]
-            -- rw [← path_append_cons_assoc]
-            -- simp [ih₁]
-            sorry
-        case cons =>
-            simp
-            sorry
+-- lemma path_append_assoc2 {M : εNFA α σ} {q₁ q₂ q₃ q₄ : σ} {x₁ x₂ x₃ : List (Option α)}
+--     {path₁ : M.Path q₁ q₂ x₁} {path₂ : M.Path q₂ q₃ x₂} {path₃ : M.Path q₃ q₄ x₃} :
+--     ((List.append_assoc x₁ x₂ x₃)▸((path₁ ++ path₂) ++ path₃)) = (path₁ ++ (path₂ ++ path₃)) := by
+--     induction path₁
+--     case nil =>
+--         induction path₂
+--         case nil => simp
+--         case cons p ih => simp
+--     case cons t₁ q₁ q₂ c₁ tail₁ h_step₁ p₁ ih₁ =>
+--         replace ih₁ := @ih₁ path₂
+--         induction path₂
+--         case nil q =>
+--             simp at ih₁
+--             let := (List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃))
+--             -- have : ((List.append_assoc tail₁ [] x₃) ▸ ((Path.cons t₁ q₁ q c₁ tail₁ h_step₁ p₁) ++ (Path.nil q ++ path₃))) =
+--             --      (Path.cons t₁ q₁ q₄ c₁ (tail₁ ++ [] ++ x₃) h_step₁ ((List.append_assoc tail₁ [] x₃) ▸ (p₁ ++ (Path.nil q ++ path₃)))) := by
+--             --     sorry
+--             -- rw [← this]
+--             --     -- path_append_cons_assoc
+--             -- rw [← path_append_cons_assoc]
+--             -- rw [← path_append_cons_assoc]
+--             -- rw [← path_append_cons_assoc]
+--             -- simp [ih₁]
+--             sorry
+--         case cons =>
+--             simp
+--             sorry
 
 structure Path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
     (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) where
@@ -169,14 +168,24 @@ lemma path_cons_contains_tail {M : εNFA α σ} {qs qf t : σ} {c : Option α} {
     (Path.cons t qs qf c x h_step p).contains p := by
     induction p generalizing c qs
     case nil t =>
-        simp [Path.contains]
-        use [c], [], (Path.cons t qs t c [] h_step (Path.nil t)), Path.nil t, (by simp)
-        simp
+        use {
+            word_qs_s := [c]
+            word_t_qf := []
+            path_qs_s := Path.cons t qs t c [] h_step (Path.nil t)
+            path_t_qf := Path.nil t
+            h_word := by simp
+            h_path := by simp
+        }
     case cons t' t qf c' tail h_step' p' ih =>
-        simp [Path.contains]
         replace ih := @ih t c' h_step'
-        use [c], [], Path.cons t qs t c [] h_step (Path.nil t), Path.nil qf, (by simp)
-        apply path_append_nil
+        use {
+            word_qs_s := [c]
+            word_t_qf := []
+            path_qs_s := Path.cons t qs t c [] h_step (Path.nil t)
+            path_t_qf := Path.nil qf
+            h_word := by simp
+            h_path := by apply path_append_nil
+        }
 
 lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ} {word₁ word₂ word₃ : List (Option α)}
     (path₁ : M.Path s₁ t₁ word₁) (path₂ : M.Path s₂ t₂ word₂) (path₃ : M.Path s₃ t₃ word₃) :
@@ -190,7 +199,6 @@ lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ}
     obtain ⟨ word_qs₂_qs₃, word_qf₃_qf₂,
              path_qs₂_qs₃, path_qf₃_qf₂,
              h_word₂₃, h_path₂₃ ⟩ := h₂
-    unfold Path.contains
     use {
         word_qs_s := word_qs₁_qs₂ ++ word_qs₂_qs₃
         word_t_qf := word_qf₃_qf₂ ++ word_qf₂_qf₁

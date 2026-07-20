@@ -129,6 +129,10 @@ lemma supp_of_singleton (A : εNFA α ℕ) (s t : ℕ) (c: (Option α)) (path: A
     have : path'.supp = ∅ := supp_of_nil A t' t path'
     simp [this]
 
+lemma dec_eq_nat_to_dec_eq :
+    (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
+    apply Subsingleton.elim
+
 structure path_split (A : εNFA α ℕ) (qs qf t : ℕ) (word_qs_qf: List (Option α)) (path_qs_qf: A.Path qs qf word_qs_qf) where
   word_qs_t : List (Option α)
   word_t_qf : List (Option α)
@@ -151,8 +155,7 @@ lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option �
         case pos h => left; exact symm h
         case neg h_qs_neq_t =>
             right
-            have := A.isPath_singleton.mpr h_step
-            obtain ⟨ path_qs_s ⟩ := this
+            obtain ⟨ path_qs_s ⟩ := A.isPath_singleton.mpr h_step
             by_cases t = s
             case pos h =>
                 clear h_induction
@@ -217,7 +220,7 @@ structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Optio
   h_path_ij  : path_ij = h_word_ij▸(path_ik ++ path_kk ++ path_kj)
   h_k_notin_ik : k ∉ path_ik.supp
   h_k_notin_kj : k ∉ path_kj.suppAfterStart
-  h_contains : path_ij.contains path_ik ∧ path_ij.contains path_kk ∧ path_ij.contains path_kj
+  --h_contains : path_ij.contains path_ik ∧ path_ij.contains path_kk ∧ path_ij.contains path_kj
 
 lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (Option α)) (path_ij: A.Path i j x'):
     (k ∈ path_ij.supp) → ∃ (_ : path_split_full A i j k x' path_ij), True := by
@@ -226,6 +229,12 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
     case nil => simp at h_k_supp
     case cons t i j c tail h_step path_tj h_induction =>
         simp at h_k_supp
+
+        have h_contains_tj: (Path.cons t i j c tail h_step path_tj).contains path_tj := by
+            simp [Path.contains]
+            use [c], [], Path.cons t i t c [] h_step (Path.nil t), Path.nil j, (by simp)
+            apply path_append_nil
+
         cases h_k_supp
         case inl h_ik =>
             subst i
@@ -250,20 +259,6 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                     h_path_ij  := by cases path_nil_kk; rfl
                     h_k_notin_ik := by cases path_nil_kk; simp
                     h_k_notin_kj := by simpa [Path.suppAfterStart] using hk_tail
-                    h_contains := (by
-                        simp [Path.contains]
-
-                        subst word_kj
-                        refine ⟨ ?_, ?_ ⟩
-                        case refine_1 =>
-                            use [], c :: tail, path_nil_kk, path_kj, (by simp)
-                            simp [path_nil_kk, path_kj]
-                        case refine_2 =>
-                            use [], [], path_nil_kk, path_nil_jj, (by simp)
-                            simp [path_nil_kk, path_nil_jj]
-                            subst path_kj
-                            exact (path_append_nil (Path.cons t k j c tail h_step path_tj))
-                    )
                 }
 
             case pos =>
@@ -272,7 +267,7 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                     word_tk, list_kk, word_kj,
                     path_tk, path_kk, path_kj,
                     h_paths_kk, h_word, h_path,
-                    h_notin_tk, h_notin_kj, h_contains
+                    h_notin_tk, h_notin_kj
                 ⟩ := p
 
                 have path_nil : A.Path k k [] := Path.nil k
@@ -288,17 +283,28 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                     path_kk := (path_k_to_k ++ path_kk)
                     path_kj := path_kj
                     h_paths_kk := (by
-                        simp at ⊢ path_k_to_k
-                        refine ⟨ ?_, ?_ ⟩
-                        case refine_1 =>
+                        intro word_kk h_word_kk
+                        simp at h_word_kk
+                        cases h_word_kk
+                        case inl h =>
+                            subst h
                             use path_k_to_k
                             subst path_k_to_k
-                            simp [Path.suppAfterStart]
-                            refine ⟨ ?_, h_notin_tk ⟩
-                            simp [Path.contains]
-                            sorry
-                        case refine_2 =>
-                            sorry
+                            refine ⟨ ?_, ?_ ⟩
+                            case refine_1 =>
+                                simp [Path.contains]
+                                use [], list_kk.flatten ++ word_kj, Path.nil k, path_kk ++ path_kj, (by simp[h_word])
+                                -- TODO: derive from h_path
+                                sorry
+                            case refine_2 =>
+                                simp [Path.suppAfterStart]
+                                exact h_notin_tk
+                        case inr h =>
+                            obtain ⟨ path_kk, h_contains_kk, h_right ⟩ := h_paths_kk word_kk h
+                            use path_kk
+                            refine ⟨ ?_, h_right ⟩
+                            apply path_contains_trans (Path.cons t k j c tail h_step path_tj) path_tj path_kk
+                            refine ⟨ h_contains_tj, h_contains_kk ⟩
                     )
                     h_word_ij := (by
                         subst tail
@@ -315,9 +321,6 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                         simp
                     )
                     h_k_notin_kj := h_notin_kj
-                    h_contains := (by
-                        sorry
-                    )
                 }
         case inr h_k_supp =>
             replace h_induction := h_induction h_k_supp
@@ -329,40 +332,46 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                 h_notin_tk, h_notin_kj
             ⟩ := p
 
+            let path_i_to_k : A.Path i k ([c] ++ word_tk) :=
+                Path.cons t i k c word_tk h_step path_tk
+
             by_cases h_ik : k = i
             case pos =>
-                subst i
+                subst h_ik
 
-                have path_ik : A.Path k k [] := Path.nil k
-                let path_k_to_k : A.Path k k ([c] ++ word_tk) :=
-                    Path.cons t k k c word_tk h_step path_tk
+                replace h_paths_kk : ∀ word_kk ∈ list_kk, ∃ (path_kk : A.Path k k word_kk),
+                    (Path.cons t k j c tail h_step path_tj).contains path_kk ∧
+                    k ∉ path_kk.suppAfterStart := by
+                    intro word_kk h_word_kk
+                    obtain ⟨ path_kk, h_contains_kk, h_right ⟩ := h_paths_kk word_kk h_word_kk
+                    use path_kk
+                    refine ⟨ ?_, h_right ⟩
+                    apply path_contains_trans (Path.cons t k j c tail h_step path_tj) path_tj path_kk
+                    exact ⟨ h_contains_tj, h_contains_kk ⟩
 
                 use {
                     word_ik := []
                     list_kk := [[c] ++ word_tk].append list_kk
                     word_kj := word_kj
-                    path_ik := path_ik
+                    path_ik := Path.nil k
                     path_kk := (Path.cons t k k c word_tk h_step path_tk) ++ path_kk
                     path_kj := path_kj
                     h_paths_kk := (by
-                        simp at ⊢ path_k_to_k
+                        simp at ⊢ path_i_to_k
                         refine ⟨ ?_, h_paths_kk ⟩
-                        use path_k_to_k
-                        subst path_k_to_k
-                        simp [Path.suppAfterStart]
-                        exact h_notin_tk
+                        use path_i_to_k
+                        refine ⟨ ?_, h_notin_tk ⟩
+                        simp [Path.contains]
+                        use [], list_kk.flatten ++ word_kj, Path.nil k, path_kk ++ path_kj, (by simp [h_word])
+                        subst path_i_to_k
+                        -- TODO: derive h_path
+                        sorry
                     )
                     h_word_ij := by
                         subst tail
                         simp [List.append_assoc]
-                    h_path_ij := by
-                        subst tail
-                        subst path_tj
-                        cases path_ik
-                        rfl
-                    h_k_notin_ik := by
-                        cases path_ik
-                        simp
+                    h_path_ij := by subst tail path_tj; rfl
+                    h_k_notin_ik := by simp
                     h_k_notin_kj := h_notin_kj
                 }
             case neg =>
@@ -373,7 +382,14 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                     path_ik := Path.cons t i k c word_tk h_step path_tk
                     path_kk := path_kk
                     path_kj := path_kj
-                    h_paths_kk := h_paths_kk
+                    h_paths_kk := (by
+                        intro word_kk h_word_kk
+                        obtain ⟨ path_kk, h_contains_kk, h_right ⟩ := h_paths_kk word_kk h_word_kk
+                        use path_kk
+                        refine ⟨ ?_, h_right ⟩
+                        apply path_contains_trans (Path.cons t i j c tail h_step path_tj) path_tj path_kk
+                        exact ⟨ h_contains_tj, h_contains_kk ⟩
+                    )
                     h_word_ij := (by
                         subst tail
                         simp [List.append_assoc]
@@ -461,7 +477,7 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
         case neg h_k_neq_0 =>
             let rᵢⱼ := regex_for_path_from_i_to_j_through_k A i j (k - 1)
             let rᵢₖ := regex_for_path_from_i_to_j_through_k A i k (k - 1)
-            let rₖₖ := regex_for_path_from_i_to_j_through_k A k k (k - 1) -- later: handle kstar
+            let rₖₖ := regex_for_path_from_i_to_j_through_k A k k (k - 1)
             let rₖⱼ := regex_for_path_from_i_to_j_through_k A k j (k - 1)
 
             simp [hr, Language.add_def] at h_x_in_r
@@ -530,11 +546,8 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                         intro k' h_k'
                         simp at h_k'
 
-                        have h_decEq : (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
-                            apply Subsingleton.elim
-
                         have h_append := A.supp_after_start_of_path_append path_kk_left path_kk_right k'
-                        rw [h_decEq] at h_k' h_path_kk_left h_path_kk_right
+                        rw [dec_eq_nat_to_dec_eq] at h_k' h_path_kk_left h_path_kk_right
 
                         cases h_append h_k'
                         case inl h_k'_in_left =>
@@ -563,16 +576,12 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                 obtain ⟨ path_kj, h_path_kj ⟩ := h_path_kj
                 use path_ik ++ path_kk ++ path_kj
                 intro k' h_k'
-                have h_decEq :
-                    (instDecidableEqNat : DecidableEq ℕ) =
-                    Classical.decEq ℕ := by
-                 apply Subsingleton.elim
 
                 have h_outer :=
                 A.supp_after_start_of_path_append
                     (path_ik ++ path_kk) path_kj k'
 
-                rw [h_decEq] at h_k' h_path_ik h_path_kk h_path_kj
+                rw [dec_eq_nat_to_dec_eq] at h_k' h_path_ik h_path_kk h_path_kj
 
                 cases h_outer h_k' with
                 | inl h_in_ik_kk =>
@@ -620,7 +629,7 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                     word_ik, list_kk, word_kj,
                     path_ik, path_kk, path_kj,
                     h_paths_kk, h_word, h_path,
-                    h_notin_ik, h_notin_kj, h_contains
+                    h_notin_ik, h_notin_kj
                 ⟩ := p
 
                 subst hr
@@ -636,13 +645,11 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                         replace h_k := h_k k'
                         cases path_ik
                         case nil => simp [Path.suppAfterStart] at h_k'
-                        case cons _ _ _ _ p =>
+                        case cons _ _ tail _ p =>
                             simp [Path.suppAfterStart] at h_k' h_notin_ik
                             have h_k'_in_supp_ij := (supp_of_path_append p (path_kk ++ path_kj) k').mpr (by
                                 left
-                                have h_decEq : (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
-                                    apply Subsingleton.elim
-                                rw [h_decEq] at h_k'
+                                rw [dec_eq_nat_to_dec_eq] at h_k'
                                 exact h_k'
                             )
 
@@ -650,6 +657,16 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                                 subst h_path h_word
                                 simp_all
                                 simp [Path.suppAfterStart]
+
+                                have : (List.append_assoc tail list_kk.flatten word_kj) ▸ (p ++ path_kk ++ path_kj) =
+                                    p ++ (path_kk ++ path_kj) := by
+                                    apply path_append_assoc2
+                                rw [← this] at h_k'_in_supp_ij
+
+                                have : (p ++ path_kk ++ path_kj) =
+                                    (List.append_assoc tail list_kk.flatten word_kj) ▸ (p ++ (path_kk ++ path_kj)) := by
+                                    apply path_append_assoc
+                                rw [this]
                                 -- exact h_k'_in_supp_ij --TODO: ++ Associativity
                                 sorry
                             replace h_k := h_k this
@@ -672,8 +689,6 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                     intro word_kk h_word_kk
                     obtain ⟨ path_kk, h_path_kk ⟩ := h_paths_kk word_kk h_word_kk
 
-
-
                     exact (regex_is_path A k k (k - 1) (regex_for_path_from_i_to_j_through_k A k k (k - 1))
                         rfl h_zero_step h_step_zero word_kk.reduceOption).mpr ⟨ word_kk, rfl, path_kk, sorry ⟩
 
@@ -686,18 +701,32 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
 
                         cases path_ij
                         case nil => simp_all
-                        case cons _ _ _ _ p =>
-                            have h_decEq : (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
-                                apply Subsingleton.elim
+                        case cons t' _ _ _ p =>
                             simp [Path.suppAfterStart] at h_k
 
                             have h_k'_in_supp_p : k' ∈ p.supp := by
                                 have h_k'_in_supp_ij := (supp_of_path_append (path_ik ++ path_kk) path_kj k').mpr (by
                                     right
-                                    rw [h_decEq] at h_k'
+                                    rw [dec_eq_nat_to_dec_eq] at h_k'
                                     exact if_supp_after_start_then_supp path_kj k' h_k'
                                 )
-                                sorry -- TODO! complicated :(
+                                cases path_ik
+                                case nil =>
+                                    simp at h_path
+                                    induction list_kk
+                                    case nil =>
+                                        simp at path_kk
+                                        cases path_kk
+                                        simp at h_path
+                                        cases path_kj
+                                        case nil => contradiction
+                                        case cons =>
+                                            -- rw [path_append_cons_assoc] at h_path
+                                            sorry
+                                    case cons head tail ih =>
+                                        sorry
+                                case cons =>
+                                    sorry -- TODO! complicated :( dervie from h_path
 
                             cases path_kj
                             case nil => simp [Path.suppAfterStart] at h_k'
@@ -888,10 +917,8 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                         have : k' ∉ path_ij.suppAfterStart := by
                             have h_k'_in_supp : k' ∈ path_ij.supp := by
                                 clear h_k_notin_supp
-                                have h_decEq : (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
-                                    apply Subsingleton.elim
                                 have := Finset.subset_iff.mp (if_supp_after_start_then_supp path_ij)
-                                simp_all only [le_refl]
+                                simp_all only [le_refl, dec_eq_nat_to_dec_eq]
                             contradiction
                         contradiction
                     omega

@@ -41,6 +41,10 @@ def reverse (M : εNFA α σ) : (εNFA α σ) := {
     step   := fun q c => { q' | q ∈ M.step q' c}
 }
 
+lemma dec_eq_nat_to_dec_eq :
+    (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
+    apply Subsingleton.elim
+
 lemma reverse_of_reverse_rfl (M : εNFA α σ) : M.reverse.reverse = M := by
     simp [εNFA.reverse]
 
@@ -65,6 +69,9 @@ def Path.reverse {M : εNFA α σ} {s u : σ} {x : List (Option α)} :
 --         sorry
 --         -- Maybe not needed, don't solve yet
 
+
+
+
 lemma path_append_cons_nil {M : εNFA α σ} {qs qf t : σ} {c : Option α} {x : List (Option α)}
     { h_step : t ∈ M.step qs c } { p : M.Path t qf x } { path_nil_qf : M.Path qf qf []} :
     (List.append_nil (c :: x))▸(Path.cons t qs qf c (x ++ []) h_step (p ++ path_nil_qf)) =
@@ -88,6 +95,8 @@ lemma path_append_nil {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path 
         rw [this]
         simp
         exact ih
+
+
 lemma path_append_cons_assoc {M : εNFA α σ} {qs qf t s : σ} {c : Option α} {x₁ x₂ : List (Option α)}
     {h_step₁ : t ∈ M.step qs c} {p₁ : M.Path t s x₁} {path₂ : M.Path s qf x₂} :
     Path.cons t qs qf c (x₁ ++ x₂) h_step₁ (p₁ ++ path₂) =
@@ -185,6 +194,20 @@ lemma path_cons_contains_tail {M : εNFA α σ} {qs qf t : σ} {c : Option α} {
             path_t_qf := Path.nil qf
             h_word := by simp
             h_path := by apply path_append_nil
+        }
+
+lemma path_contains_reflex {M : εNFA α σ} {s₁ t₁ : σ} {word₁ : List (Option α)}
+    (path₁ : M.Path s₁ t₁ word₁):
+    path₁.contains path₁ := by
+        use {
+            word_qs_s := []
+            word_t_qf := []
+            path_qs_s := Path.nil s₁
+            path_t_qf := Path.nil t₁
+            h_word := by simp
+            h_path := by
+                simp
+                apply path_append_nil
         }
 
 lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ} {word₁ word₂ word₃ : List (Option α)}
@@ -581,6 +604,51 @@ lemma path_if_contains (A : εNFA α ℕ) (A' : εNFA α ℕ) (h_contains: A.con
             exact mem_of_subset_of_mem (h_contains q₁ c) h_step
         apply A.isPath_singleton.mpr at h_step
         exact A.isPath_append.mpr ⟨ t, h_step, h_induction ⟩
+
+
+lemma suppAfterStart_of_path_contains
+    {A : εNFA α σ}
+    {s₁ t₁ s₂ t₂ q : σ}
+    {x₁ x₂ : List (Option α)}
+    (outer : A.Path s₁ t₁ x₁)
+    (inner : A.Path s₂ t₂ x₂) :
+    outer.contains inner →
+    q ∈ inner.suppAfterStart →
+    q ∈ outer.suppAfterStart := by
+        intro h_contains hq
+        obtain ⟨h_data,_⟩  := h_contains
+        obtain ⟨word_prefix, word_suffix, pre ,suffix, h_word, h_path⟩ := h_data
+        induction pre generalizing x₁
+        case nil =>
+            simp at h_path
+            subst h_word h_path
+            cases inner with
+            | nil =>
+                simp [Path.suppAfterStart] at hq
+            | cons next start finish c tail hstep p =>
+                simp [Path.suppAfterStart] at hq ⊢
+                exact
+                    (supp_of_path_append p suffix q).mpr
+                    (Or.inl hq)
+        case cons next start finish c tail h_step pre_tail ih =>
+            simp at h_path
+            subst h_word h_path
+            have q_in_supp: q ∈ inner.supp :=
+                (if_supp_after_start_then_supp inner q hq)
+
+
+            have q_in_pre_inner : q ∈ (pre_tail ++ inner).supp :=
+                 (supp_of_path_append pre_tail inner q).mpr
+                    (Or.inr q_in_supp)
+
+            simp [Path.suppAfterStart]
+            exact
+                (supp_of_path_append (pre_tail ++ inner) suffix q).mpr
+                (Or.inl q_in_pre_inner)
+
+
+
+
 
 
 lemma dont_go_nowhere (A : εNFA α ℕ) (hAempty : A.start = ∅) :

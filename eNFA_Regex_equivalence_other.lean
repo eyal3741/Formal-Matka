@@ -818,8 +818,7 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                               suppAfterStart_of_path_contains
                                  path_ij path_kj h_contains_kj h_k'
 
-                        have h_le : k' ≤ k :=
-                        h_k k' h_k'_in_original
+                        have h_le : k' ≤ k := h_k k' h_k'_in_original
 
                         have h_ne : k' ≠ k := by
                             intro h_eq
@@ -827,49 +826,6 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                             exact h_notin_kj h_k'
 
                         omega
-
-                        -- cases path_ij
-                        -- case nil => simp_all
-                        -- case cons t' _ _ _ p =>
-                        --     simp [Path.suppAfterStart] at h_k
-
-                        --     have h_k'_in_supp_p : k' ∈ p.supp := by
-                        --         have h_k'_in_supp_ij := (supp_of_path_append (path_ik ++ path_kk) path_kj k').mpr (by
-                        --             right
-                        --             rw [dec_eq_nat_to_dec_eq] at h_k'
-                        --             exact if_supp_after_start_then_supp path_kj k' h_k'
-                        --         )
-
-                        --         cases path_ik
-                        --         case nil =>
-                        --             simp at h_path
-                        --             induction list_kk
-                        --             case nil =>
-                        --                 simp at path_kk
-                        --                 cases path_kk
-                        --                 simp at h_path
-                        --                 cases path_kj
-                        --                 case nil => contradiction
-                        --                 case cons =>
-                        --                     simp at h_k'_in_supp_ij
-                        --                     -- rw [path_append_cons_assoc] at h_path
-                        --                     sorry
-                        --             case cons head tail ih =>
-                        --                 sorry
-                        --         case cons =>
-                        --             sorry -- TODO! complicated :( dervie from h_path
-
-                        --     cases path_kj
-                        --     case nil => simp [Path.suppAfterStart] at h_k'
-                        --     case cons _ _ _ _ p =>
-                        --         simp [Path.suppAfterStart] at h_k' h_notin_kj
-
-                        --         replace h_k := h_k h_k'_in_supp_p
-                        --         have : k' ≠ k := by
-                        --             by_contra!
-                        --             subst this
-                        --             simp [h_notin_kj] at h_k' -- contradiction
-                        --         omega
 
                     exact (regex_is_path A k j (k - 1) (regex_for_path_from_i_to_j_through_k A k j (k - 1))
                         rfl h_zero_step h_step_zero word_kj.reduceOption).mpr ⟨ word_kj, rfl, path_kj, h_k'_less_k ⟩
@@ -1052,97 +1008,116 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
 
                     omega
 
-
                 exact (regex_is_path A i j (k - 1) (regex_for_path_from_i_to_j_through_k A i j (k - 1))
                             rfl h_zero_step h_step_zero x).mpr ⟨ x', h_x', path_ij, h_k ⟩
 
 theorem εNFA_to_Regex (A: εNFA α ℕ) : A.is_finite_automata → (∃ (r: RegularExpression α), r.matches' = A.accepts) := by
+    let A' := to_singular A
+    rw [accepts_iff_singular_accepts A A']
+    swap
+    simp_all only [A']
+    rw [finite_iff_to_singular_finite A A' rfl]
 
-    sorry
-    -- let A' := to_singular A
-    -- have hA'tosinA: A' = to_singular A := by
-    --     simp_all only [A']
-    -- rw [accepts_iff_singular_accepts A A']
-    -- swap
-    -- simp_all only [A']
-    -- rw [finite_iff_to_singular_finite A A' hA'tosinA]
+    obtain ⟨ h_zero_step, h_step_zero ⟩ := if_singular_zero_step_empty A A' rfl
 
-    -- rw [εNFA.is_finite_automata]
-    -- rintro ( hnill | ⟨ n, hnmax ⟩ )
-    -- case inl =>
-    --     use 0
-    --     simp only [dont_go_nowhere A' hnill, RegularExpression.matches']
-    -- case inr =>
-    --     have hA'singular: is_singular A' := by
-    --         simp_all only [A']
-    --         unfold to_singular
-    --         unfold is_singular
-    --         constructor
-    --         use SingularStart
-    --         exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
-    --         use SingularAccept
-    --         exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
-    --     unfold is_singular at hA'singular
-    --     obtain ⟨ s, hs ⟩ := hA'singular.left
-    --     obtain ⟨ a, ha ⟩ := hA'singular.right
-    --     let A'' := to_trim A' s a n
-    --     have histrim: A'' = to_trim A' s a n := by
-    --         simp_all only [A', A'']
-    --     have hA'finite: A'.is_finite_automata := by
-    --         rw [εNFA.is_finite_automata]
-    --         right
-    --         use n
-    --     rw [singular_finite_accepts_iff_trim_accepts
-    --     A' A'' s a n
-    --     hA'singular hA'finite
-    --     hnmax hs ha
-    --     histrim]
-    --     let r' := regex_for_path_from_i_to_j_through_k A'' s a n
-    --     have hr: r' = regex_for_path_from_i_to_j_through_k A' s a n := by
-    --         subst A'
-    --         simp_all only [A'', r']
-    --         obtain ⟨left, right⟩ := hA'singular
-    --         obtain ⟨w, h⟩ := left
-    --         obtain ⟨w_1, h_1⟩ := right
-    --         -- TODO: EYAL
-    --         sorry
-    --     have hgs: A''.start = {s} := by
-    --         simp_all only [A', A'', r']
-    --         obtain ⟨left, right⟩ := hA'singular
-    --         obtain ⟨w, h⟩ := left
-    --         obtain ⟨w_1, h_1⟩ := right
-    --         rfl
-    --     have hga: A''.accept = {a} := by
-    --         simp_all only [A', A'', r']
-    --         obtain ⟨left, right⟩ := hA'singular
-    --         obtain ⟨w, h⟩ := left
-    --         obtain ⟨w_1, h_1⟩ := right
-    --         rfl
-    --     use r'
-    --     rw [@Language.ext_iff]
-    --     intro x
-    --     rw [A''.mem_accepts_iff_exists_path]
-    --     rw [hgs, hga]
+    rw [εNFA.is_finite_automata]
+    rintro ( hnill | ⟨ n, hnmax ⟩ )
+    case inl =>
+        use 0
+        simp only [dont_go_nowhere A' hnill, RegularExpression.matches']
+    case inr =>
+        have hA' : (∃s: ℕ, A'.start = {s}) ∧ (∃a: ℕ, A'.accept = {a}) := by
+            subst A'
+            unfold to_singular
+            simp
 
-    --     constructor
-    --     case mp =>
-    --         intro hmatch
-    --         use s
-    --         use a
-    --         let hreg := ((regex_is_path A' s a n r' hr) x).mp hmatch
+        obtain ⟨ s, hs ⟩ := hA'.left
+        obtain ⟨ a, ha ⟩ := hA'.right
 
-    --         obtain ⟨ x', ⟨ hx', hpath⟩ ⟩ := hreg
+        have hA'finite: A'.is_finite_automata := by
+            unfold εNFA.is_finite_automata
+            right
+            use n
 
-    --         use x'
-    --         refine ⟨ mem_singleton s, mem_singleton a, hx', ?_ ⟩
-    --         rw [histrim]
-    --         exact hpath
-    --     case mpr =>
-    --         rintro ⟨ temps, tempa, tempx', htemps, htempa, htempx, hpath ⟩
-    --         let hreg := ((regex_is_path A' s a n r' hr) x).mpr
-    --         apply hreg
-    --         use tempx'
-    --         constructor
-    --         · exact htempx
-    --         subst htempx
-    --         simp_all only [mem_singleton_iff, A', A'']
+        use regex_for_path_from_i_to_j_through_k A' s a n
+        rw [@Language.ext_iff]
+        intro x
+
+        constructor
+        case mp =>
+            intro hmatch
+            simp_all
+            let hreg := (regex_is_path A' s a n (regex_for_path_from_i_to_j_through_k A' s a n) rfl h_zero_step h_step_zero x).mp hmatch
+            obtain ⟨ x', ⟨ hx', path, h_path⟩ ⟩ := hreg
+            rw [A'.mem_accepts_iff_exists_path]
+            use s, a, x'
+            exact ⟨ (by simp [hs]), (by simp [ha]), hx', (by use path) ⟩
+        case mpr =>
+            rw [A'.mem_accepts_iff_exists_path]
+            rintro ⟨ s', a', tempx', hs', ha', htempx', ⟨path⟩ ⟩
+            replace hs' : s = s' := by
+                simp [hs] at hs'
+                exact hs'.symm
+            replace ha' : a = a' := by
+                simp [ha] at ha'
+                exact ha'.symm
+            subst hs' ha'
+
+            let hreg := (regex_is_path A' s a n (regex_for_path_from_i_to_j_through_k A' s a n) rfl h_zero_step h_step_zero x).mpr
+            apply hreg
+            refine ⟨ tempx', htempx', path, ?_ ⟩
+
+            clear ha hreg
+
+            unfold max_reachable_node at hnmax
+            obtain ⟨ ⟨ s', x', hs', ⟨ path' ⟩ ⟩, h_absurd ⟩ := hnmax
+
+            replace h_absurd : ∀ n' > n, ¬∃ k' x y, Nonempty (A'.Path s k' x) ∧ Nonempty (A'.Path k' n' y) := by
+                intro n' hn'
+                by_contra!
+                obtain ⟨ k', x, y, ⟨ path_x ⟩ , ⟨ path_y ⟩ ⟩ := this
+                replace h_absurd := h_absurd n' hn'
+                push_neg at h_absurd
+                replace hs : s ∈ A'.start := by simp[hs]
+                replace h_absurd := h_absurd s (x ++ y) hs
+                have := A'.isPath_append.mpr ⟨ k', (by use path_x), (by use path_y) ⟩
+                simp only [not_isEmpty_of_nonempty] at h_absurd
+
+            clear hs
+
+            induction path generalizing x
+            case nil => simp [Path.suppAfterStart]
+            case cons t s a c tail h_step p ih =>
+                simp [Path.suppAfterStart]
+                intro k' hk'_supp
+                rw [εNFA.dec_eq_nat_to_dec_eq] at hk'_supp
+                replace h_step := A'.isPath_singleton.mpr h_step
+                cases p
+                case nil => simp at hk'_supp -- contradiction
+                case cons t' c' tail'' h_step' p' =>
+                    simp at hk'_supp
+                    cases hk'_supp
+                    case inl h =>
+                        subst h
+                        by_contra!
+                        replace h_absurd := h_absurd k' this
+                        absurd h_absurd
+                        use s, [], [c]
+                        exact ⟨ (by use Path.nil s), h_step ⟩
+
+                    case inr h =>
+                        replace h_absurd : (∀ n' > n, ¬∃ k' x y, Nonempty (A'.Path t k' x) ∧ Nonempty (A'.Path k' n' y)) := by
+                            by_contra!
+                            obtain ⟨ n', hn', k', x, y, ⟨ path_x ⟩, ⟨ path_y ⟩ ⟩ := this
+                            replace h_absurd := h_absurd n' hn'
+                            push_neg at h_absurd
+                            let path_cx := A'.isPath_append.mpr ⟨ t, h_step, (by use path_x) ⟩
+                            replace h_absurd := h_absurd k' (c :: x) y path_cx
+                            absurd h_absurd
+                            push_neg
+                            use path_y
+
+                        replace ih := ih (c' :: tail'').reduceOption rfl h_absurd
+                        simp [Path.suppAfterStart] at ih
+                        rw [εNFA.dec_eq_nat_to_dec_eq] at ih
+                        exact ih k' h

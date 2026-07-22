@@ -70,21 +70,16 @@ def Path.reverse {M : εNFA α σ} {s u : σ} {x : List (Option α)} :
 --         -- Maybe not needed, don't solve yet
 
 
-lemma path_append_nil
+lemma path_append_nil'
 {q₁ q₂ x}
 {p : Path M q₁ q₂ x}
 : p ++ Path.nil q₂ = (List.append_nil x).symm ▸ p := by
   induction p
   case nil => trivial
   case cons q₁ q₂ q₃ c cs h_step p' ih =>
-    sorry
-
-lemma path_eq_of_word_eq
-{q₁ q₂ x x'} (h : x = x')
-{p₁ : Path M q₁ q₂ x}
-{p₂ : Path M q₁ q₂ x'}
-: p₁ = h ▸ p₂ := by
-  sorry
+    unfold Path.append
+    rw [ih]
+    grind only
 
 lemma path_append_cons_nil {M : εNFA α σ} {qs qf t : σ} {c : Option α} {x : List (Option α)}
     { h_step : t ∈ M.step qs c } { p : M.Path t qf x } { path_nil_qf : M.Path qf qf []} :
@@ -94,17 +89,8 @@ lemma path_append_cons_nil {M : εNFA α σ} {qs qf t : σ} {c : Option α} {x :
         cases path_nil_qf
         · trivial
     subst path_nil_qf
-    rw [path_append_nil]
-    -- All that's left is to use ∀ l : List _, l ++ [] = l, but this fails because of ▸. use induction.
-    ext
-
-    induction p generalizing c qs
-    case nil => simp
-    case cons t' qs' qf' c' tail' h_step' p' ih =>
-        replace ih := @ih qs' c' h_step' (Path.nil qf')
-        -- have : ∀ {α} a₁ (as : List α), a₁ :: as ++ [] = a₁ :: as := by sorry
-        -- rw [this]
-        rw [ih]
+    rw [path_append_nil']
+    grind only
 
 lemma path_append_nil {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
     path = (List.append_nil x)▸(path ++ Path.nil u) := by

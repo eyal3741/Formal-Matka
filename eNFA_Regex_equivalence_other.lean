@@ -305,12 +305,15 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                                     path_qs_s := Path.nil k
                                     path_t_qf := path_kk ++ path_kj
                                     h_word := by simp [h_word]
-                                    h_path := (by
+                                    h_path := by
+                                        subst tail
+                                        subst path_tj
+                                        simp only [Path.append]
+                                        rw [path_append_assoc]
+                                        grind
 
-                                        -- TODO: derive from h_path
-                                        simp
-                                        sorry
-                                    )
+
+
                                 }
                             case refine_2 =>
                                 simp [Path.suppAfterStart]
@@ -389,11 +392,13 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                             path_qs_s := Path.nil k
                             path_t_qf := path_kk ++ path_kj
                             h_word := by simp [h_word]
-                            h_path := (by
-                                -- TODO: derive from h_path
-                                simp
-                                sorry
-                            )
+                            h_path := by
+                                subst tail
+                                subst path_tj
+                                simp only [Path.append]
+                                rw [path_append_assoc]
+                                simp [path_i_to_k, Path.append]
+                                grind
                         }
                     )
                     h_word_ij := (by
@@ -664,9 +669,55 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
             split_ifs at hr
             case pos h_k_0 h_i_j =>
                 subst h_k_0
-                sorry
+                have h_zero_not_in_supp : 0 ∉ path_ij.supp := by
+                    clear h_x' h_i_j hr h_k h_k_in_supp
+                    induction path_ij with
+                    | nil =>
+                        simp
+                    | cons t s u c tail h_step p ih =>
+                        intro h_zero
+                        simp only [
+                            Path.supp,
+                            Finset.mem_union,
+                            Finset.mem_singleton
+                        ] at h_zero
+
+                        rcases h_zero with h_s | h_tail
+                        ·
+                            subst s
+                            rw [h_zero_step c] at h_step
+                            simp at h_step
+                        ·
+                            exact ih h_tail
+
+
+                exact (h_zero_not_in_supp h_k_in_supp).elim
+
             case neg h_k_0 h =>
-                sorry
+                subst h_k_0
+
+                have h_zero_not_in_supp : 0 ∉ path_ij.supp := by
+                    clear h_x' hr h_k h_k_in_supp h
+                    induction path_ij with
+                    | nil =>
+                        simp
+                    | cons t s u c tail h_step p ih =>
+                        intro h_zero
+                        simp only [
+                            Path.supp,
+                            Finset.mem_union,
+                            Finset.mem_singleton
+                        ] at h_zero
+
+                        rcases h_zero with h_s | h_tail
+                        ·
+                            subst s
+                            rw [h_zero_step c] at h_step
+                            simp at h_step
+                        · exact ih h_tail
+
+                exact (h_zero_not_in_supp h_k_in_supp).elim
+
             case neg h_k_neq_0 =>
                 obtain ⟨ p, _ ⟩ := path_multiple_split_at_state A i j k x' path_ij h_k_in_supp
                 obtain ⟨
@@ -991,22 +1042,22 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                 replace h_k : ∀ k' ∈ path_ij.suppAfterStart, k' ≤ (k-1) := by
                     intro k' h_k'
                     replace h_k := h_k k' h_k'
-                    have : k' ≠ k := by
-                        by_contra!
-                        subst this
-                        have : k' ∉ path_ij.suppAfterStart := by
-                            have h_k'_in_supp : k' ∈ path_ij.supp := by
-                                have := Finset.subset_iff.mp (if_supp_after_start_then_supp path_ij)
-                                simp_all only [le_refl, εNFA.dec_eq_nat_to_dec_eq]
+                    have h_ne : k' ≠ k := by
+                        intro h_eq
+                        subst k'
+                        rw [εNFA.dec_eq_nat_to_dec_eq] at h_k' h_k_notin_supp
+                        exact h_k_notin_supp
+                            ((Finset.subset_iff.mp
+                                (if_supp_after_start_then_supp path_ij)) h_k')
 
-                            contradiction
-                        contradiction
                     omega
+
 
                 exact (regex_is_path A i j (k - 1) (regex_for_path_from_i_to_j_through_k A i j (k - 1))
                             rfl h_zero_step h_step_zero x).mpr ⟨ x', h_x', path_ij, h_k ⟩
 
 theorem εNFA_to_Regex (A: εNFA α ℕ) : A.is_finite_automata → (∃ (r: RegularExpression α), r.matches' = A.accepts) := by
+
     sorry
     -- let A' := to_singular A
     -- have hA'tosinA: A' = to_singular A := by

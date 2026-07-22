@@ -225,7 +225,15 @@ lemma path_append_assoc
 {p₂ : Path M q₂ q₃ w₂}
 {p₃ : Path M q₃ q₄ w₃}
 : (p₁ ++ p₂) ++ p₃ = (List.append_assoc _ _ _) ▸ (p₁ ++ (p₂ ++ p₃)) := by
-  sorry
+  induction p₁ with
+  | nil =>
+      rfl
+  | cons t s u c tail h_step p ih =>
+      simp only [Path.append]
+      rw [ih]
+      grind
+
+
 
 lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ} {word₁ word₂ word₃ : List (Option α)}
     (path₁ : M.Path s₁ t₁ word₁) (path₂ : M.Path s₂ t₂ word₂) (path₃ : M.Path s₃ t₃ word₃) :

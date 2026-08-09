@@ -94,22 +94,6 @@ termination_by k
 decreasing_by
     all_goals omega
 
-lemma path_start_mem_supp
-    (A : εNFA α ℕ) (s u : ℕ) (x : List (Option α))
-    (p : A.Path s u x) :
-    x = [] ∨ s ∈ p.supp := by
-        cases p with
-        | nil => left; rfl
-        | cons t s u c tail h_step h_rest =>
-            right
-            simp [εNFA.Path.supp]
-
-lemma not_none_is_some (c : Option α):
-    c ≠ none → ∃ (σ : α), c = some σ := by
-    intro h_not_none
-    cases c
-    case none => contradiction
-    case some σ => use σ
 
 lemma list_map_of_reduce_option (L' : List (List (Option α))) :
     L'.flatten.reduceOption = (List.map (fun x' ↦ x'.reduceOption) L').flatten := by
@@ -119,94 +103,6 @@ lemma list_map_of_reduce_option (L' : List (List (Option α))) :
         simp [List.reduceOption_append]
         exact h_induction
 
-lemma supp_of_nil (A : εNFA α ℕ) (s t : ℕ) (path: A.Path s t []) : path.supp = ∅ := by
-    cases path
-    simp
-
-lemma supp_of_singleton (A : εNFA α ℕ) (s t : ℕ) (c: (Option α)) (path: A.Path s t [c]) : path.supp = {s} := by
-    cases path
-    next cons t' h_step path' =>
-    have : path'.supp = ∅ := supp_of_nil A t' t path'
-    simp [this]
-
-lemma dec_eq_nat_to_dec_eq :
-    (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
-    apply Subsingleton.elim
-
-structure path_split (A : εNFA α ℕ) (qs qf t : ℕ) (word_qs_qf: List (Option α)) (path_qs_qf: A.Path qs qf word_qs_qf) where
-  word_qs_t : List (Option α)
-  word_t_qf : List (Option α)
-  path_qs_t : A.Path qs t word_qs_t
-  path_t_qf : A.Path t qf word_t_qf
-  h_word_qs_qf : word_qs_qf = word_qs_t ++ word_t_qf
-  h_path_qs_qf : path_qs_qf = h_word_qs_qf▸(path_qs_t ++ path_t_qf)
-  h_t : t ∉ path_qs_t.supp
-
-lemma path_split_at_state (A : εNFA α ℕ) (qs qf t : ℕ) (x': List (Option α)) (path_qs_qf: A.Path qs qf x') :
-    t ∈ path_qs_qf.supp → qs = t ∨
-    ∃ (_ : path_split A qs qf t x' path_qs_qf), True := by
-
-    intro h_t_in_path_qs_qf
-    induction path_qs_qf
-    case nil s =>
-        simp at h_t_in_path_qs_qf
-    case cons s qs qf c tail h_step path_s_qf h_induction =>
-        by_cases t = qs
-        case pos h => left; exact symm h
-        case neg h_qs_neq_t =>
-            right
-            obtain ⟨ path_qs_s ⟩ := A.isPath_singleton.mpr h_step
-            by_cases t = s
-            case pos h =>
-                clear h_induction
-                symm at h
-                subst h
-                use {
-                    word_qs_t := [c]
-                    word_t_qf := tail
-                    path_qs_t := path_qs_s
-                    path_t_qf := path_s_qf
-                    h_word_qs_qf := by simp only [List.cons_append, List.nil_append]
-                    h_path_qs_qf := (by
-                        simp
-                        cases path_qs_s
-                        case cons t h_step path_t_s =>
-                            cases path_t_s
-                            case nil => simp
-                    )
-                    h_t := (by
-                        cases path_qs_s
-                        case cons t h_step path_t_s =>
-                            cases path_t_s
-                            case nil => simp [h_qs_neq_t]
-                    )
-                }
-
-            case neg h_s_neq_t =>
-                simp[h_qs_neq_t] at h_t_in_path_qs_qf
-                replace h_induction := h_induction h_t_in_path_qs_qf
-                cases h_induction
-                case inl h => simp [symm h] at h_s_neq_t
-                case inr h_induction =>
-                    obtain ⟨ p ⟩ := h_induction
-                    obtain ⟨ y', tail', path_s_t, path_t_qf, h_tail, heq_append, h_supp ⟩ := p
-                    have h_word_qs_qf : c :: tail = [c] ++ y' ++ tail' := by
-                        subst h_tail
-                        simp only [List.cons_append, List.nil_append]
-                    use {
-                        word_qs_t := [c] ++ y'
-                        word_t_qf := tail'
-                        path_qs_t := Path.cons s qs t c y' h_step path_s_t
-                        path_t_qf := path_t_qf
-                        h_word_qs_qf := h_word_qs_qf
-                        h_path_qs_qf := (by
-                            subst tail
-                            simp only [List.cons_append, List.nil_append]
-                            subst path_s_qf
-                            rfl
-                        )
-                        h_t := by simp [h_qs_neq_t, h_supp]
-                    }
 
 structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Option α)) (path_ij: A.Path i j word_ij) where
   word_ik : List (Option α)
@@ -311,9 +207,6 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                                         simp only [Path.append]
                                         rw [path_append_assoc]
                                         grind
-
-
-
                                 }
                             case refine_2 =>
                                 simp [Path.suppAfterStart]

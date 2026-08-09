@@ -15,97 +15,58 @@ variable {α : Type u} [Fintype α] [DecidableEq α]
 set_option linter.unusedSectionVars false
 set_option linter.unusedVariables false
 
-------------------------------------
----------- Helpfull tools ----------
-------------------------------------
-
 namespace εNFA
-
------------------------------------------
----------- Automata Path Tools ----------
------------------------------------------
-
 variable {α : Type u} {σ : Type v} (M : εNFA α σ) {S : Set σ} {s t u : σ} {a : α}
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+--  ###-Path Tools-###
+--  Tools needed for proofs using path. Since path is not currently native to the
+--  εNFA in lean, these lemmas are written here
+--  @ Path Concatination - append two paths to one another
+--  @ Path Containment - derrive a sub-path from the infix of an existing path
+--  @ Path Support - the group of states a given path visits
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
 
+-----------------------------------------------------------------------------------
+--  ###-Path Concatination-###
+-----------------------------------------------------------------------------------
 @[simp]
 def Path.append {M : εNFA α σ} {qs qf t : σ} {x y : List (Option α)} :
     (path_y : M.Path qs t y) → (path_x : M.Path t qf x) → M.Path qs qf (y ++ x)
   | Path.nil _, p => p
   | Path.cons u _ _ c tail_y h_step path_tail, p => Path.cons u qs qf c (tail_y ++ x) h_step (Path.append path_tail p)
-
 infixl:65 " ++ " => Path.append
 
-def reverse (M : εNFA α σ) : (εNFA α σ) := {
-    start  := M.accept
-    accept := M.start
-    step   := fun q c => { q' | q ∈ M.step q' c}
-}
-
-lemma dec_eq_nat_to_dec_eq :
-    (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
-    apply Subsingleton.elim
-
-lemma reverse_of_reverse_rfl (M : εNFA α σ) : M.reverse.reverse = M := by
-    simp [εNFA.reverse]
-
-lemma List.reverse_of_reverse_rfl (L : List (Option α)) : L.reverse.reverse = L := by
-    simp
-
-def Path.reverse {M : εNFA α σ} {s u : σ} {x : List (Option α)} :
-    (path : M.Path s u x) → M.reverse.Path u s x.reverse
-  | Path.nil s => Path.nil s
-  | Path.cons t s u c tail h_step p => by
-        simp
-        replace h_step : s ∈ M.reverse.step t c := by simp [εNFA.reverse, h_step]
-        let p_c : M.reverse.Path t s [c] := (@Path.cons α σ M.reverse) s t s c [] h_step (@Path.nil α σ M.reverse s)
-        use p.reverse ++ p_c
-
--- lemma path_reverse_of_reverse_rfl {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
---     path = (List.reverse_of_reverse_rfl x)▸(reverse_of_reverse_rfl M)▸path.reverse.reverse := by
---     induction path
---     case nil s => simp [Path.reverse]
---     case cons p ih =>
---         simp
---         sorry
---         -- Maybe not needed, don't solve yet
-
-
-lemma path_append_nil'
-{q₁ q₂ x}
-{p : Path M q₁ q₂ x}
-: p ++ Path.nil q₂ = (List.append_nil _).symm ▸ p := by
-  induction p
-  case nil => trivial
-  case cons q₁ q₂ q₃ c cs h_step p' ih =>
-    unfold Path.append
-    grind only
-
-lemma path_append_cons_nil {M : εNFA α σ} {qs qf t : σ} {c : Option α} {x : List (Option α)}
-    { h_step : t ∈ M.step qs c } { p : M.Path t qf x } { path_nil_qf : M.Path qf qf []} :
-    (List.append_nil (c :: x))▸(Path.cons t qs qf c (x ++ []) h_step (p ++ path_nil_qf)) =
-    (Path.cons t qs qf c x h_step ((List.append_nil x)▸(p ++ path_nil_qf))) := by
-    cases path_nil_qf
-    grind only [path_append_nil']
 
 lemma path_append_nil {M : εNFA α σ} {s u : σ} {x : List (Option α)} (path : M.Path s u x) :
     path = (List.append_nil x)▸(path ++ Path.nil u) := by
     induction path
-    case nil => simp
-    case cons t s u c tail h_step p ih =>
-        have : (List.append_nil (c :: tail)) ▸ (Path.cons t s u c tail h_step p ++ Path.nil u) =
-                (Path.cons t s u c tail h_step ((List.append_nil tail)▸(p ++ Path.nil u))) := by
-            apply path_append_cons_nil
+    case nil => trivial
+    case cons q₁ q₂ q₃ c cs h_step p' ih =>
+        unfold Path.append
+        grind only
 
-        rw [this]
-        simp
-        exact ih
 
 lemma path_append_cons_assoc {M : εNFA α σ} {qs qf t s : σ} {c : Option α} {x₁ x₂ : List (Option α)}
-    {h_step₁ : t ∈ M.step qs c} {p₁ : M.Path t s x₁} {path₂ : M.Path s qf x₂} :
-    Path.cons t qs qf c (x₁ ++ x₂) h_step₁ (p₁ ++ path₂) =
-    ((Path.cons t qs s c x₁ h_step₁ p₁) ++ path₂) := by
+    {h_step₁ : t ∈ M.step qs c} {p₁ : M.Path t s x₁} {p₂ : M.Path s qf x₂} :
+    Path.cons t qs qf c (x₁ ++ x₂) h_step₁ (p₁ ++ p₂) =
+    ((Path.cons t qs s c x₁ h_step₁ p₁) ++ p₂) := by
     simp only [Path.append]
 
+lemma path_append_assoc
+{q₁ q₂ q₃ q₄ w₁ w₂ w₃}
+{p₁ : Path M q₁ q₂ w₁}
+{p₂ : Path M q₂ q₃ w₂}
+{p₃ : Path M q₃ q₄ w₃}
+: (p₁ ++ p₂) ++ p₃ = (List.append_assoc _ _ _) ▸ (p₁ ++ (p₂ ++ p₃)) := by
+  induction p₁ with
+  | nil => rfl
+  | cons t s u c tail h_step p ih => grind only [Path.append]
+
+-----------------------------------------------------------------------------------
+--  ###-Path Containment-###
+-----------------------------------------------------------------------------------
 structure Path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
     (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) where
     word_qs_s : List (Option α)
@@ -118,6 +79,7 @@ structure Path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t 
 def Path.contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
     (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) :=
     ∃ (_ : Path_contains path_qs_qf path_s_t), True
+
 
 lemma path_cons_contains_tail {M : εNFA α σ} {qs qf t : σ} {c : Option α} {x : List (Option α)}
     {p : M.Path t qf x} {h_step : t ∈ M.step qs c} :
@@ -143,6 +105,7 @@ lemma path_cons_contains_tail {M : εNFA α σ} {qs qf t : σ} {c : Option α} {
             h_path := by apply path_append_nil
         }
 
+
 lemma path_contains_reflex {M : εNFA α σ} {s₁ t₁ : σ} {word₁ : List (Option α)}
     (path₁ : M.Path s₁ t₁ word₁):
     path₁.contains path₁ := by
@@ -157,15 +120,6 @@ lemma path_contains_reflex {M : εNFA α σ} {s₁ t₁ : σ} {word₁ : List (O
                 apply path_append_nil
         }
 
-lemma path_append_assoc
-{q₁ q₂ q₃ q₄ w₁ w₂ w₃}
-{p₁ : Path M q₁ q₂ w₁}
-{p₂ : Path M q₂ q₃ w₂}
-{p₃ : Path M q₃ q₄ w₃}
-: (p₁ ++ p₂) ++ p₃ = (List.append_assoc _ _ _) ▸ (p₁ ++ (p₂ ++ p₃)) := by
-  induction p₁ with
-  | nil => rfl
-  | cons t s u c tail h_step p ih => grind only [Path.append]
 
 lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ} {word₁ word₂ word₃ : List (Option α)}
     (path₁ : M.Path s₁ t₁ word₁) (path₂ : M.Path s₂ t₂ word₂) (path₃ : M.Path s₃ t₃ word₃) :
@@ -195,6 +149,9 @@ lemma path_contains_trans {M : εNFA α σ} {s₁ t₁ s₂ t₂ s₃ t₃ : σ}
         )
     }
 
+-----------------------------------------------------------------------------------
+--  ###-Path Support-###
+-----------------------------------------------------------------------------------
 lemma supp_of_path_append {M : εNFA α σ} {qs qf t : σ} {x₁ x₂: List (Option α)}
     (path₁: M.Path qs t x₁) (path₂: M.Path t qf x₂) (q : σ) :
     q ∈ (path₁ ++ path₂).supp ↔ q ∈ path₁.supp ∨ q ∈ path₂.supp := by
@@ -232,6 +189,7 @@ lemma supp_of_path_append {M : εNFA α σ} {qs qf t : σ} {x₁ x₂: List (Opt
             case inl h => left;  exact h
             case inr h => right; exact h_induction path₂ h
 
+
 lemma supp_of_path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_s_t : List (Option α)}
     (path_qs_qf : M.Path qs qf word_qs_qf) (path_s_t : M.Path s t word_s_t) (q : σ):
     path_qs_qf.contains path_s_t → q ∈ path_s_t.supp → q ∈ path_qs_qf.supp := by
@@ -254,14 +212,16 @@ lemma supp_of_path_contains {M : εNFA α σ} {qs qf s t : σ} {word_qs_qf word_
         right
         exact ih (p ++ path_s_t ++ path_t_qf) path_s_t h_q rfl rfl
 
+
 def Path.suppAfterStart [DecidableEq σ] {M : εNFA α σ} {s t : σ} {x : List (Option α)} :
     M.Path s t x → Finset σ
   | Path.nil _ => ∅
   | Path.cons _ _ _ _ _ _ p => p.supp
 
+
 lemma supp_after_start_of_path_append {M : εNFA α σ} {qs qf t} {x₁ x₂: List (Option α)}
-    (path₁: M.Path qs t x₁) (path₂: M.Path t qf x₂) (q : σ) : q ∈ (path₁ ++ path₂).suppAfterStart →
-    q ∈ path₁.suppAfterStart ∨ q ∈ path₂.supp := by
+    (path₁: M.Path qs t x₁) (path₂: M.Path t qf x₂) (q : σ) :
+    q ∈ (path₁ ++ path₂).suppAfterStart → q ∈ path₁.suppAfterStart ∨ q ∈ path₂.supp := by
     intro h_q_in_append
     cases path₁
     case nil =>
@@ -275,6 +235,7 @@ lemma supp_after_start_of_path_append {M : εNFA α σ} {qs qf t} {x₁ x₂: Li
         simp at h_q_in_append
         exact (supp_of_path_append path_tail₁ path₂ q).mp h_q_in_append
 
+
 lemma if_supp_after_start_then_supp {M : εNFA α σ} {s t : σ} {x: List (Option α)}
     (path: M.Path s t x) (q : σ): q ∈ path.suppAfterStart → q ∈ path.supp := by
     intro h_q
@@ -284,6 +245,7 @@ lemma if_supp_after_start_then_supp {M : εNFA α σ} {s t : σ} {x: List (Optio
         simp [Path.suppAfterStart] at h_q ⊢
         right
         exact h_q
+
 
 lemma if_supp_then_start_or_supp_after_start {M : εNFA α σ} {s t : σ} {x: List (Option α)}
     (path: M.Path s t x) (q : σ) : q ∈ path.supp → q = s ∨ q ∈ path.suppAfterStart := by
@@ -300,16 +262,29 @@ lemma if_supp_then_start_or_supp_after_start {M : εNFA α σ} {s t : σ} {x: Li
             simp [Path.suppAfterStart]
             exact h
 
+
 lemma if_q_in_supp {A : εNFA α σ} {s t q : σ} {x: List (Option α)} (path : A.Path s t x)
       (hq : q ∈ path.supp):  q = s ∨ q ∈ path.suppAfterStart := by
        cases path <;> simp_all [Path.suppAfterStart]
 
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+--  ###-Automata Renaming-###
+--  When needing to use two automata in the construction of a new automata, states
+--  with the same name cause problems in regard to transitions, hence the source
+--  Automata need to have unique names for their states.
+--  @ Defenitions
+--  @ Identical Steps
+--  @ All States After Rename Share Mod 2
+--  @ Identical States
+--  @ Identical Paths
+--  @ Identical Language
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
 
----------------------------------------
----------- Automata Doubling ----------
----------------------------------------
-
-
+-----------------------------------------------------------------------------------
+--  ###-Defenitions-###
+-----------------------------------------------------------------------------------
 def to_0mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' | q' ∈ A.start  }
     accept := { 2*q' | q' ∈ A.accept }
@@ -320,7 +295,6 @@ def to_0mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
             ∅
     : εNFA α ℕ
 }
-
 def to_1mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
     start  := { 2*q' + 1 | q' ∈ A.start  }
     accept := { 2*q' + 1 | q' ∈ A.accept }
@@ -334,11 +308,14 @@ def to_1mod2 (A : εNFA α ℕ) : εNFA α ℕ := {
 
 def is_0mod2 (A' : εNFA α ℕ) :=
     ∃ (A : εNFA α ℕ), A' = to_0mod2 A
-
 def is_1mod2 (A' : εNFA α ℕ) :=
     ∃ (A : εNFA α ℕ), A' = to_1mod2 A
 
-lemma if_0mod2_step_is_0mod2 (A' : εNFA α ℕ) (hA': A'.is_0mod2) (q₁ q₂ : ℕ) (σ : Option α) : (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = 0 ∧  q₂ % 2 = 0) := by
+-----------------------------------------------------------------------------------
+--  ###-Identical Steps-###
+-----------------------------------------------------------------------------------
+lemma if_0mod2_step_is_0mod2 (A' : εNFA α ℕ) (hA': A'.is_0mod2) (q₁ q₂ : ℕ) (σ : Option α) :
+(q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = 0 ∧  q₂ % 2 = 0) := by
     intro h_step
     obtain ⟨A, hA⟩ := hA'
 
@@ -346,7 +323,9 @@ lemma if_0mod2_step_is_0mod2 (A' : εNFA α ℕ) (hA': A'.is_0mod2) (q₁ q₂ :
     simp [to_0mod2] at h_step
     omega
 
-lemma if_1mod2_step_is_1mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q₂ : ℕ) (σ : Option α) : (q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = 1 ∧  q₂ % 2 = 1) := by
+
+lemma if_1mod2_step_is_1mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q₂ : ℕ) (σ : Option α) :
+(q₂ ∈ A'.step q₁ σ) → (q₁ % 2 = 1 ∧  q₂ % 2 = 1) := by
     intro h_step
     obtain ⟨A, hA⟩ := hA'
 
@@ -377,6 +356,9 @@ lemma if_1mod2_step_is_same_mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q�
     right
     exact hA'
 
+-----------------------------------------------------------------------------------
+--  ###-All States After Rename Share Mod 2-###
+-----------------------------------------------------------------------------------
 lemma if_mod2_path_is_same_mod2 (A' : εNFA α ℕ) (q₁ q₂ : ℕ) (x : List (Option α)):
     A'.is_0mod2 ∨ A'.is_1mod2 → Nonempty (A'.Path q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := by
     intro h_mod2_eNFA h_path
@@ -393,6 +375,9 @@ lemma if_0mod2_path_is_same_mod2 (A' : εNFA α ℕ) (hA': A'.is_0mod2) (q₁ q�
 lemma if_1mod2_path_is_same_mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q₁ q₂ : ℕ) (x : List (Option α)) :
     Nonempty (A'.Path q₁ q₂ x) → (q₁ % 2 = q₂ % 2) := if_mod2_path_is_same_mod2 A' q₁ q₂ x (Or.inr hA')
 
+-----------------------------------------------------------------------------------
+--  ###-Identical States-###
+-----------------------------------------------------------------------------------
 lemma if_mod2_consequences (A' : εNFA α ℕ) (q : ℕ) :
     (A'.is_0mod2 → ((q ∈ A'.start → (q % 2 = 0)) ∧ (q ∈ A'.accept → (q % 2 = 0)))) ∧
     (A'.is_1mod2 → ((q ∈ A'.start → (q % 2 = 1)) ∧ (q ∈ A'.accept → (q % 2 = 1)))) := by
@@ -417,6 +402,9 @@ lemma if_0mod2_qf_is_0mod2 (A' : εNFA α ℕ) (hA': A'.is_0mod2) (q : ℕ) (hq:
 lemma if_1mod2_qf_is_1mod2 (A' : εNFA α ℕ) (hA': A'.is_1mod2) (q : ℕ) (hq: q ∈ A'.accept) :
     (q % 2 = 1) := ((if_mod2_consequences A' q).right hA').right hq
 
+-----------------------------------------------------------------------------------
+--  ###-Identical Paths-###
+-----------------------------------------------------------------------------------
 lemma path_iff_mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' : ℕ) (y : List (Option α)) :
     (((A' = A.to_0mod2) ∧ (qs' = 2 * qs)     ∧ (qf' = 2 * qf)) ∨
      ((A' = A.to_1mod2) ∧ (qs' = 2 * qs + 1) ∧ (qf' = 2 * qf + 1))) →
@@ -474,6 +462,10 @@ lemma path_iff_1mod2_path (A : εNFA α ℕ) (A' : εNFA α ℕ) (qs qf qs' qf' 
     Nonempty (A.Path qs qf y) ↔ Nonempty (A'.Path qs' qf' y) :=
     (path_iff_mod2_path A A' qs qf qs' qf' y (Or.inr ⟨ hA', h_qs', h_qf' ⟩))
 
+
+-----------------------------------------------------------------------------------
+--  ###-Identical Language-###
+-----------------------------------------------------------------------------------
 lemma accepts_iff_mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) :
     (A' = to_0mod2 A) ∨ (A' = to_1mod2 A) → A.accepts = A'.accepts := by
     rintro (hA' | hA')
@@ -539,9 +531,16 @@ lemma accepts_iff_1mod2_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' 
     A.accepts = A'.accepts := accepts_iff_mod2_accepts A A' (Or.inr hA')
 
 
----------------------------------------
----------- General Automata  ----------
----------------------------------------
+
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+--  ###-Miscellaneous Automata Tools-###
+--  Additional defenitions and lemmas
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+lemma dec_eq_nat_to_dec_eq :
+    (instDecidableEqNat : DecidableEq ℕ) = Classical.decEq ℕ := by
+    apply Subsingleton.elim
 
 def contains (A : εNFA α ℕ) (A' : εNFA α ℕ) :=
     ∀ (q : ℕ), ∀ (σ: Option α), A'.step q σ ⊆ A.step q σ
@@ -616,9 +615,23 @@ lemma dont_go_nowhere (A : εNFA α ℕ) (hAempty : A.start = ∅) :
 
 end εNFA
 
+
 variable {α : Type u} [Fintype α] [DecidableEq α]
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+--  ###-Singular Automata-###
+--  Helps to make an equivalent automata with only one starting and accepting
+--  states, used to avoid problems with Regex '+' chain created by multiple
+--  states (|Q₀| · |F|) by making it only one.
+--  @ Basics Of Singular - Singular def. and lemmas
+--  @ Finiteness - Since the Automata → Regex requires a finite automata,
+--      finiteness needs to be defined and transfered via singularization
+-----------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
 
-
+-----------------------------------------------------------------------------------
+--  ###-Basics Of Singular-###
+-----------------------------------------------------------------------------------
 def SingularStart  := 4
 def SingularAccept := 2
 
@@ -823,13 +836,19 @@ lemma accepts_iff_singular_accepts (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': 
 
             use s, qf, mid
 
+
+-----------------------------------------------------------------------------------
+--  ###-Finiteness-###
+-----------------------------------------------------------------------------------
 def εNFA.max_reachable_node (A : εNFA α ℕ) (n : ℕ) :=
     (∃s₁: ℕ, ∃x: List (Option α), s₁ ∈ A.start ∧ Nonempty (A.Path s₁ n x))
     ∧
     ∀n': ℕ, (n' > n) → ¬(∃s₁: ℕ, ∃x: List (Option α), s₁ ∈ A.start ∧ Nonempty (A.Path s₁ n' x))
 
+
 def εNFA.is_finite_automata (A : εNFA α ℕ) :=
     (A.start = ∅) ∨ (∃n: ℕ, A.max_reachable_node n)
+
 
 lemma if_1mod2_max_reachable_is_1mod2 (A : εNFA α ℕ) (n: ℕ) (hA: A.is_1mod2) (h_n: A.max_reachable_node n) :
     n % 2 = 1 := by
@@ -838,6 +857,7 @@ lemma if_1mod2_max_reachable_is_1mod2 (A : εNFA α ℕ) (n: ℕ) (hA: A.is_1mod
     apply A.if_1mod2_qs_is_1mod2 hA at h_s_start
     apply A.if_1mod2_path_is_same_mod2 hA s n x at h_path
     omega
+
 
 lemma finite_iff_1mod2_is_finite (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A' = A.to_1mod2) :
     A.is_finite_automata ↔ A'.is_finite_automata := by
@@ -944,6 +964,7 @@ lemma finite_iff_1mod2_is_finite (A : εNFA α ℕ) (A' : εNFA α ℕ) (hA': A'
                 have := A.path_iff_1mod2_path A' s k s' k' x hA' (by omega) (by omega)
                 exact this.mp h_path_A
 
+
 lemma if_singular_1mod2_path (A A' : εNFA α ℕ) (qs qf : ℕ) (hA': A' = to_singular A)
     (h_qs: qs % 2 = 1) (h_qf: qf % 2 = 1) (x: List (Option α)):
     Nonempty (A'.Path qs qf x) ↔ Nonempty (A.to_1mod2.Path qs qf x) := by
@@ -1006,6 +1027,7 @@ lemma if_singular_1mod2_path (A A' : εNFA α ℕ) (qs qf : ℕ) (hA': A' = to_s
 
         exact A'.path_if_contains A.to_1mod2 h_A'_contains_A_1mod2 qs qf x h_A1mod2_path
 
+
 lemma singular_path_from_odd_ends_odd
     (A A' : εNFA α ℕ) (q qf : ℕ) (y : List (Option α))
     (hA' : A' = to_singular A)
@@ -1064,6 +1086,7 @@ lemma if_singular_zero_step_empty (A A' : εNFA α ℕ) (hA': A' = to_singular A
         split_ifs
         all_goals
         simp [εNFA.to_1mod2]
+
 
 lemma finite_iff_to_singular_finite (A A' : εNFA α ℕ) (hA': A' = to_singular A):
     A.is_finite_automata ↔ A'.is_finite_automata := by

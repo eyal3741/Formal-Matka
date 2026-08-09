@@ -95,14 +95,6 @@ decreasing_by
     all_goals omega
 
 
-lemma list_map_of_reduce_option (L' : List (List (Option α))) :
-    L'.flatten.reduceOption = (List.map (fun x' ↦ x'.reduceOption) L').flatten := by
-    induction L'
-    case nil => simp
-    case cons head tail h_induction =>
-        simp [List.reduceOption_append]
-        exact h_induction
-
 
 structure path_split_full (A : εNFA α ℕ) (i j k : ℕ) (word_ij: List (Option α)) (path_ij: A.Path i j word_ij) where
   word_ik : List (Option α)
@@ -666,8 +658,7 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
                 case refine_1 =>
                     simp [Language.kstar_def]
                     use (List.map (fun x' ↦ x'.reduceOption) list_kk)
-                    simp
-                    refine ⟨ list_map_of_reduce_option list_kk , ?_ ⟩
+                    simp [List.reduceOption]
                     intro word_kk h_word_kk
                     obtain ⟨ path_kk, h_contains_kk, h_notin_kk⟩ := h_paths_kk word_kk h_word_kk
 

@@ -23,10 +23,15 @@ set_option linter.unusedSectionVars false
 variable {α : Type u} [Fintype α] [DecidableEq α]
 open εNFA
 
+
+/-- Builds a regular expression that matches exactly the one-character words
+whose character occurs in `characters`. The empty list produces the empty language. -/
 def character_list_to_regex : List α → RegularExpression α
     | .nil => 0
     | .cons head tail => (RegularExpression.char head) + (character_list_to_regex tail)
 
+/-- Characterizes the language of `character_list_to_regex`: a word is accepted
+exactly when it is a singleton `[σ]` with `σ` contained in `characters`. -/
 lemma character_list_regex_accepts_characters (characters : List α) (r: RegularExpression α)
     (hr: r = character_list_to_regex characters) (x : List α):
     x ∈ r.matches' ↔ ∃ (σ : α), σ ∈ characters ∧ x = [σ] := by
@@ -71,6 +76,17 @@ lemma character_list_regex_accepts_characters (characters : List α) (r: Regular
                 right
                 exact h_induction (character_list_to_regex tail) rfl h_σ_tail
 
+/-- Recursively constructs a regular expression for paths from state `i` to state `j`
+using states up to `k` as intermediate states. The base case handles direct character
+and ε-transitions; the recursive case separates paths that avoid `k` from paths that
+enter `k`, loop there any number of times, and then leave for `j`.
+
+Path shape in the recursive case:
+    i ----[rᵢⱼ]--------------------------------> j
+or
+    i --[rᵢₖ]--> k --[rₖₖ]*--> k --[rₖⱼ]--> j
+-/
+
 noncomputable
 def regex_for_path_from_i_to_j_through_k (A : εNFA α ℕ) (i j k : ℕ) :
     RegularExpression α :=
@@ -114,7 +130,10 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
     (k ∈ path_ij.supp) → ∃ (_ : path_split_full A i j k x' path_ij), True := by
     intro h_k_supp
     induction path_ij
+    -- Base case: an empty path has no states in its support, contradicting the hypothesis.
     case nil => simp at h_k_supp
+    -- Inductive case: split the nonempty path into its first transition `i → t` and its tail `t → j`.
+    -- i --[c]--> t --[tail]--> j
     case cons t i j c tail h_step path_tj h_induction =>
         simp at h_k_supp
 
@@ -128,10 +147,15 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                 h_path := by apply path_append_nil
             }
         cases h_k_supp
+        -- Case 1: `k` is the starting state `i` of the full path.
+        -- (= i) --[c]--> t --[tail]--> j
         case inl h_ik =>
             subst i
             by_cases hk_tail : k ∈ path_tj.supp
 
+            -- Subcase 1a: `k` never appears in the tail, so the whole path is the final `k → j` segment.
+            -- k --[c :: tail, with no later k]------------------> j
+            -- Split:    k --[word_ik = []]--> k --[no k-loops]--> k --[word_kj]--
             case neg =>
                 clear h_induction
                 let word_kj := c :: tail
@@ -155,6 +179,9 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                         change path_kj.contains path_kj
                         exact path_contains_reflex path_kj
                 }
+            -- Subcase 1b: `k` appears again in the tail, so prepend the initial return to the tail's `k`-loops.
+            -- k --[c]--> t --[word_tk]--> k --[list_kk loops]--> k --[word_kj]--> j
+            -- New split: the segment `k --[c]--> t --[word_tk]--> k` becomes the first `k`-loop.
 
             case pos =>
                 obtain ⟨p, _⟩ := h_induction hk_tail
@@ -181,11 +208,15 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                         intro word_kk h_word_kk
                         simp at h_word_kk
                         cases h_word_kk
+                        -- The requested loop is the newly prepended loop from `k` back to `k`.
+                        -- Picture:  k --[c]--> t --[word_tk]--> k
                         case inl h =>
                             subst h
                             use path_k_to_k
                             subst path_k_to_k
                             refine ⟨ ?_, ?_ ⟩
+                            -- First obligation: the newly constructed loop is contained in the original path.
+                            -- Picture:  original = [ k --[c]--> t --[word_tk]--> k ] --[rest]--> j
                             case refine_1 =>
                                 use {
                                     word_qs_s := []
@@ -200,9 +231,13 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                                         rw [path_append_assoc]
                                         grind
                                 }
+                             -- Second obligation: the new loop does not revisit `k` after its starting state.
+                            -- Picture:  k --[c]--> t --[word_tk, no internal k]--> k
                             case refine_2 =>
                                 simp [Path.suppAfterStart]
                                 exact h_notin_tk
+                         -- The requested loop comes from the tail's previously constructed list of `k`-loops.
+                        -- Picture:  k --[new loop]--> k -- ... --[word_kk]--> k -- ... --> j
                         case inr h =>
                             obtain ⟨ path_kk, h_contains_kk, h_right ⟩ := h_paths_kk word_kk h
                             use path_kk
@@ -232,6 +267,8 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                             exact ⟨h_contains_tj, h_contains_kj_tail⟩
                     )
                 }
+        -- Case 2: `k` occurs in the tail, so begin with the split supplied by the induction hypothesis.
+        -- i --[c]--> t --[word_tk]--> k --[list_kk loops]--> k --[word_kj]--> j
         case inr h_k_supp =>
             replace h_induction := h_induction h_k_supp
             obtain ⟨ p, _ ⟩ := h_induction
@@ -246,6 +283,9 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                 Path.cons t i k c word_tk h_step path_tk
 
             by_cases h_ik : k = i
+             -- Subcase 2a: the original start is `k`, so the new `i → k` segment becomes an additional `k`-loop.
+            -- Picture:  k (= i) --[c]--> t --[word_tk]--> k --[old k-loops]--> k --[word_kj]--> j
+            -- New split: `[c] ++ word_tk` is moved into the front of the list of `k`-loops.
             case pos =>
                 subst h_ik
 
@@ -301,6 +341,9 @@ lemma path_multiple_split_at_state (A : εNFA α ℕ) (i j k : ℕ) (x': List (O
                                ⟨h_contains_tj, h_contains_kj_tail⟩
 
                 }
+             -- Subcase 2b: the original start is not `k`, so extend the tail's `t → k` prefix with the first transition.
+            -- Picture:  i --[c]--> t --[word_tk, no internal k]--> k --[k-loops]--> k --[word_kj]--> j
+            -- New prefix:  i --[[c] ++ word_tk]---------------------------> k
             case neg =>
                 use {
                     word_ik := [c] ++ word_tk
@@ -343,6 +386,7 @@ theorem regex_is_path (A : εNFA α ℕ) (i j k : ℕ) (r: RegularExpression α)
      ∃ (path_ij: A.Path i j x'), ∀ (k': ℕ), (k' ∈ path_ij.suppAfterStart → (k' ≤ k)))) := by
     intro x
     constructor
+     -- turn a regex match into a bounded automaton path.
     case mp =>
         intro h_x_in_r
         unfold regex_for_path_from_i_to_j_through_k at hr

@@ -3,3 +3,9 @@
 .DS_Store
 lean-toolchain
 lake-manifest.json
+
+# Documents excluded from this repository
+Introduction to the theory of computation_third edition - Michael Sipser.pdf
+Lecture11_regex.pdf
+Lecture12.pdf
+Myhill-Nerode waterloo.pdf
